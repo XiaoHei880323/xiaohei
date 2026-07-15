@@ -1,0 +1,23 @@
+CREATE TABLE `course_teacher` (
+    `id`          int(11)       NOT NULL AUTO_INCREMENT COMMENT '教师ID',
+    `teacher_no`  varchar(50)   NOT NULL                COMMENT '教师工号',
+    `name`        varchar(100)  NOT NULL                COMMENT '教师姓名',
+    `gender`      tinyint(3)    NOT NULL DEFAULT 0      COMMENT '性别 0:未知 1:男 2:女',
+    `phone`       varchar(20)   NOT NULL DEFAULT ''     COMMENT '手机号',
+    `email`       varchar(100)  NOT NULL DEFAULT ''     COMMENT '邮箱',
+    `title`       varchar(100)  NOT NULL DEFAULT ''     COMMENT '职称',
+    `department`  varchar(100)  NOT NULL DEFAULT ''     COMMENT '所属部门',
+    `password`    varchar(255)  NOT NULL                COMMENT '登录密码哈希',
+    `status`      tinyint(3)    NOT NULL DEFAULT 1      COMMENT '状态 0:禁用 1:正常',
+    `create_time` timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time` timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `add_uid`     int(11)       NOT NULL DEFAULT 0      COMMENT '创建人ID，sy_admin.id',
+    `update_uid`  int(11)       NOT NULL DEFAULT 0      COMMENT '更新人ID，sy_admin.id',
+    `is_delete`   tinyint(3)    NOT NULL DEFAULT 0      COMMENT '是否删除 0:未删除 1:已删除',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_course_teacher_teacher_no` (`teacher_no`),
+    KEY `idx_course_teacher_name` (`name`),
+    KEY `idx_course_teacher_phone` (`phone`),
+    KEY `idx_course_teacher_department` (`department`),
+    KEY `idx_course_teacher_status_deleted` (`status`, `is_delete`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课程模块教师表';

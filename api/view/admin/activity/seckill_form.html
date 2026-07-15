@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>秒杀活动 - 表单</title>
+    <link rel="stylesheet" href="/admin/static/common.css">
+</head>
+<body>
+<div class="page-wrap" style="max-width:720px">
+
+    <div class="page-header">
+        <div style="display:flex;align-items:center;gap:12px">
+            <button class="btn btn-secondary" onclick="goBack()">← 返回列表</button>
+            <div>
+                <div class="page-title" id="pg-title">新增秒杀活动</div>
+                <div class="page-subtitle">填写活动基本信息</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display:flex;flex-direction:column;gap:18px;padding:4px 0">
+            <input type="hidden" id="f-id">
+
+            <div class="mf">
+                <label>活动名称 <span class="req">*</span></label>
+                <input type="text" id="f-name" placeholder="请输入活动名称">
+            </div>
+            <div class="mf">
+                <label>活动图片 URL</label>
+                <input type="text" id="f-img" placeholder="请输入图片链接（可选）" oninput="previewImg(this.value)">
+                <img id="f-img-preview" src="" alt="图片预览" style="display:none;margin-top:8px;max-width:100%;max-height:200px;border-radius:6px;border:1px solid rgba(255,255,255,.12)">
+            </div>
+            <div class="mf">
+                <label>活动描述</label>
+                <textarea id="f-text" rows="3" placeholder="请输入活动描述（可选）"></textarea>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                <div class="mf">
+                    <label>开始时间 <span class="req">*</span></label>
+                    <input type="datetime-local" id="f-start">
+                </div>
+                <div class="mf">
+                    <label>结束时间 <span class="req">*</span></label>
+                    <input type="datetime-local" id="f-end">
+                </div>
+            </div>
+            <div class="mf" style="max-width:320px">
+                <label>预览时间</label>
+                <input type="datetime-local" id="f-preview">
+            </div>
+
+            <div style="display:flex;gap:12px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08)">
+                <button class="btn btn-secondary" onclick="goBack()">取消</button>
+                <button class="btn btn-primary"   onclick="doSubmit()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/admin/static/common.js"></script>
+<script>
+    Auth.check();
+
+    const raw  = sessionStorage.getItem('admin_form_seckill');
+    const item = raw ? JSON.parse(raw) : null;
+    sessionStorage.removeItem('admin_form_seckill');
+
+    if (item) {
+        document.getElementById('pg-title').textContent = '编辑秒杀活动';
+        document.getElementById('f-id').value           = item.activityId;
+        document.getElementById('f-name').value         = item.activityName        || '';
+        document.getElementById('f-img').value          = item.activityImage       || '';
+        previewImg(item.activityImage);
+        document.getElementById('f-text').value         = item.activityText        || '';
+        document.getElementById('f-start').value        = toDTLocal(item.activityStartTime);
+        document.getElementById('f-end').value          = toDTLocal(item.activityEndTime);
+        document.getElementById('f-preview').value      = toDTLocal(item.activityPreviewTime);
+    }
+
+    async function doSubmit() {
+        const id   = document.getElementById('f-id').value;
+        const name = document.getElementById('f-name').value.trim();
+        if (!name) { toast('请输入活动名称', 'err'); return; }
+        const body = {
+            activityName:        name,
+            activityImage:       document.getElementById('f-img').value.trim(),
+            activityText:        document.getElementById('f-text').value.trim(),
+            activityStartTime:   fmtDT(document.getElementById('f-start').value),
+            activityEndTime:     fmtDT(document.getElementById('f-end').value),
+            activityPreviewTime: fmtDT(document.getElementById('f-preview').value),
+        };
+        if (id) body.activityId = +id;
+        const data = await api(id ? '/admin/activity/seckill/updateInfo' : '/admin/activity/seckill/add', body);
+        if (data?.code === 200) {
+            toast(id ? '修改成功' : '新增成功');
+            setTimeout(goBack, 800);
+        } else toast(data?.message || '操作失败', 'err');
+    }
+
+    function goBack() { window.location.href = '/admin/page/activity/seckill'; }
+
+    function previewImg(url) {
+        const img = document.getElementById('f-img-preview');
+        if (url && url.trim()) { img.src = url.trim(); img.style.display = 'block'; }
+        else { img.src = ''; img.style.display = 'none'; }
+    }
+</script>
+</body>
+</html>

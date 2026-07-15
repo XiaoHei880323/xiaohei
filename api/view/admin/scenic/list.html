@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>景点管理</title>
+    <link rel="stylesheet" href="/admin/static/common.css">
+    <style>
+        .view { display: none; }
+        .view.on { display: block; }
+        .form-wrap { max-width: 760px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .form-footer { display:flex; gap:12px; padding-top:16px; border-top:1px solid rgba(255,255,255,.08); margin-top:8px; }
+    </style>
+</head>
+<body>
+<div class="page-wrap">
+
+    <!-- ===== LIST VIEW ===== -->
+    <div id="v-list" class="view on">
+        <div class="page-header">
+            <div>
+                <div class="page-title">景点管理</div>
+                <div class="page-subtitle">管理平台景点信息</div>
+            </div>
+            <button class="btn btn-primary" onclick="showForm()">+ 新增景点</button>
+        </div>
+
+        <div class="card">
+            <div class="search-form">
+                <div class="f-field">
+                    <label>景点名称</label>
+                    <input type="text" id="s-name" placeholder="搜索景点名称">
+                </div>
+                <button class="btn btn-primary"   onclick="load(1)">搜索</button>
+                <button class="btn btn-secondary" onclick="clearFields('s-name');load(1)">重置</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="tbl-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th><th>景点名称</th><th>经度</th><th>纬度</th>
+                            <th>门票价格</th><th>状态</th><th>创建时间</th><th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody"></tbody>
+                </table>
+            </div>
+            <div class="pager" id="pager"></div>
+        </div>
+    </div>
+
+    <!-- ===== FORM VIEW ===== -->
+    <div id="v-form" class="view form-wrap">
+        <div class="page-header">
+            <div style="display:flex;align-items:center;gap:12px">
+                <button class="btn btn-secondary" onclick="showList()">← 返回列表</button>
+                <div>
+                    <div class="page-title" id="form-title">新增景点</div>
+                    <div class="page-subtitle">填写景点基本信息</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <input type="hidden" id="f-id">
+            <div class="mf">
+                <label>景点名称 <span class="req">*</span></label>
+                <input type="text" id="f-name" placeholder="请输入景点名称">
+            </div>
+            <div class="mf">
+                <label>景点图片 URL</label>
+                <input type="text" id="f-img" placeholder="请输入图片链接（可选）" oninput="previewImg(this.value)">
+                <img id="f-img-preview" src="" alt="图片预览" style="display:none;margin-top:8px;max-width:100%;max-height:200px;border-radius:6px;border:1px solid rgba(255,255,255,.12)">
+            </div>
+            <div class="form-grid">
+                <div class="mf">
+                    <label>经度</label>
+                    <input type="text" id="f-lng" placeholder="如 116.397428">
+                </div>
+                <div class="mf">
+                    <label>纬度</label>
+                    <input type="text" id="f-lat" placeholder="如 39.909736">
+                </div>
+            </div>
+            <div class="mf" style="max-width:240px">
+                <label>门票价格</label>
+                <input type="text" id="f-price" placeholder="如 50.00">
+            </div>
+            <div class="mf">
+                <label>景点描述</label>
+                <div id="f-desc"></div>
+            </div>
+            <div class="form-footer">
+                <button class="btn btn-secondary" onclick="showList()">取消</button>
+                <button class="btn btn-primary"   onclick="submit()">保存</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- 删除确认 -->
+<div class="mask" id="m-del">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-hd">
+            <span class="modal-title">确认删除</span>
+            <button class="modal-x" onclick="closeModal('m-del')">✕</button>
+        </div>
+        <div class="modal-bd" style="padding:20px 24px">
+            <p style="color:#e8eaf0;line-height:1.6">
+                确认删除景点 "<strong id="del-name" style="color:#e94560"></strong>"？<br>
+                <span style="color:#8a9bc0;font-size:13px">删除后无法恢复。</span>
+            </p>
+        </div>
+        <div class="modal-ft">
+            <button class="btn btn-secondary" onclick="closeModal('m-del')">取消</button>
+            <button class="btn btn-danger"    onclick="confirmDel()">确认删除</button>
+        </div>
+    </div>
+</div>
+
+<script src="/admin/static/editor.js"></script>
+<script src="/admin/static/common.js"></script>
+<script>
+    Auth.check();
+
+    let page = 1, total = 0, ps = 15, pendingDelId = 0, scenicMap = {};
+    const editor = new RichEditor('f-desc', { placeholder: '请输入景点描述（可选）' });
+
+    function showList() {
+        document.getElementById('v-form').classList.remove('on');
+        document.getElementById('v-list').classList.add('on');
+    }
+
+    function showForm(item) {
+        document.getElementById('f-id').value             = item ? item.id : '';
+        document.getElementById('form-title').textContent = item ? '编辑景点' : '新增景点';
+        document.getElementById('f-name').value  = item?.spotName    || '';
+        document.getElementById('f-img').value   = item?.spotImage   || '';
+        document.getElementById('f-lng').value   = item?.longitude   || '';
+        document.getElementById('f-lat').value   = item?.latitude    || '';
+        document.getElementById('f-price').value = item?.ticketPrice || '';
+        editor.setHTML(item?.description || '');
+        previewImg(item?.spotImage || '');
+        document.getElementById('v-list').classList.remove('on');
+        document.getElementById('v-form').classList.add('on');
+    }
+
+    async function load(p) {
+        page = p;
+        document.getElementById('tbody').innerHTML = trLoading(8);
+        const data = await api('/admin/scenic/list', {
+            spotName: document.getElementById('s-name').value.trim(),
+            page: p, pageSize: ps
+        });
+        if (!data || data.code !== 200) {
+            document.getElementById('tbody').innerHTML = trEmpty(8, data?.message || '加载失败');
+            return;
+        }
+        const d = data.data; total = d.count || 0;
+        const list = d.list || [];
+        if (!list.length) { document.getElementById('tbody').innerHTML = trEmpty(8); document.getElementById('pager').innerHTML = ''; return; }
+        scenicMap = {};
+        list.forEach(s => scenicMap[s.id] = s);
+        document.getElementById('tbody').innerHTML = list.map(s => `
+            <tr>
+                <td>${s.id}</td>
+                <td>${esc(s.spotName)}</td>
+                <td>${esc(s.longitude) || '—'}</td>
+                <td>${esc(s.latitude)  || '—'}</td>
+                <td>¥${esc(s.ticketPrice) || '0.00'}</td>
+                <td>${s.status === 1 ? '<span class="badge badge-g">上架</span>' : '<span class="badge badge-r">下架</span>'}</td>
+                <td>${s.addTime || '—'}</td>
+                <td>
+                    <div class="td-acts">
+                        <button class="btn btn-primary btn-sm" onclick="showForm(scenicMap[${s.id}])">编辑</button>
+                        <button class="btn btn-${s.status === 1 ? 'warning' : 'success'} btn-sm" onclick="toggleStatus(${s.id},${s.status})">${s.status === 1 ? '下架' : '上架'}</button>
+                        <button class="btn btn-danger  btn-sm" onclick="del(${s.id},'${esc(s.spotName)}')">删除</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+        renderPager('pager', total, page, ps, 'load');
+    }
+
+    async function submit() {
+        const id   = document.getElementById('f-id').value;
+        const name = document.getElementById('f-name').value.trim();
+        if (!name) { toast('请输入景点名称', 'err'); return; }
+        const body = {
+            spotName:    name,
+            longitude:   document.getElementById('f-lng').value.trim(),
+            latitude:    document.getElementById('f-lat').value.trim(),
+            ticketPrice: document.getElementById('f-price').value.trim(),
+            description: editor.getHTML(),
+        };
+        if (id) body.id = +id;
+        const data = await api(id ? '/admin/scenic/updateInfo' : '/admin/scenic/add', body);
+        if (data?.code === 200) { toast(id ? '修改成功' : '新增成功'); showList(); load(page); }
+        else toast(data?.message || '操作失败', 'err');
+    }
+
+    async function toggleStatus(id, curStatus) {
+        const newStatus = curStatus === 1 ? 0 : 1;
+        const data = await api('/admin/scenic/updateStatus', { id: id, status: newStatus });
+        if (data?.code === 200) { toast(newStatus === 1 ? '已上架' : '已下架'); load(page); }
+        else toast(data?.message || '操作失败', 'err');
+    }
+
+    function del(id, name) {
+        pendingDelId = id;
+        document.getElementById('del-name').textContent = name;
+        openModal('m-del');
+    }
+
+    async function confirmDel() {
+        if (!pendingDelId) return;
+        const data = await api('/admin/scenic/delete', { id: pendingDelId });
+        pendingDelId = 0; closeModal('m-del');
+        if (data?.code === 200) { toast('删除成功'); load(page); }
+        else toast(data?.message || '删除失败', 'err');
+    }
+
+    function previewImg(url) {
+        const img = document.getElementById('f-img-preview');
+        if (url && url.trim()) { img.src = url.trim(); img.style.display = 'block'; }
+        else { img.src = ''; img.style.display = 'none'; }
+    }
+
+    load(1);
+</script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>欢迎</title>
+    <link rel="stylesheet" href="/admin/static/common.css">
+    <style>
+        .welcome-wrap { padding:40px 24px; }
+        .welcome-title { font-size:24px; font-weight:700; margin-bottom:8px; }
+        .welcome-sub   { color:var(--muted); font-size:14px; margin-bottom:32px; }
+        .stat-grid     { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; }
+        .stat-card {
+            background:var(--bg-card);
+            border:1px solid var(--border);
+            border-radius:12px;
+            padding:24px 20px;
+            cursor:pointer;
+            transition:all .2s;
+        }
+        .stat-card:hover { border-color:var(--blue); transform:translateY(-2px); }
+        .stat-card .sc-icon  { font-size:32px; margin-bottom:12px; }
+        .stat-card .sc-label { font-size:12px; color:var(--muted); margin-bottom:4px; }
+        .stat-card .sc-title { font-size:16px; font-weight:700; }
+    </style>
+</head>
+<body>
+<div class="welcome-wrap">
+    <div class="welcome-title" id="wt">欢迎回来</div>
+    <div class="welcome-sub">请从左侧菜单选择功能模块开始操作</div>
+    <div class="stat-grid" id="statGrid"></div>
+</div>
+<script src="/admin/static/common.js"></script>
+<script>
+    Auth.check();
+    const info = Auth.getInfo();
+    document.getElementById('wt').textContent = '欢迎回来，' + (info.nickName || info.userName || '管理员');
+
+    const modules = [
+        { icon:'🎉', label:'点击进入', title:'活动管理', page:'activity/list' },
+        { icon:'🛍️', label:'点击进入', title:'商品管理', page:'goods/list' },
+        { icon:'💎', label:'点击进入', title:'积分规则', page:'points/rule' },
+    ];
+    // 超级管理员额外显示用户管理入口
+    if (Auth.isSuperAdmin()) {
+        modules.unshift(
+            { icon:'👥', label:'点击进入', title:'用户列表',   page:'user/list' },
+            { icon:'🛡️', label:'点击进入', title:'管理员管理', page:'user/manage' }
+        );
+    }
+
+    document.getElementById('statGrid').innerHTML = modules.map(m => `
+        <div class="stat-card" onclick="window.parent.goPage('${m.page}')">
+            <div class="sc-icon">${m.icon}</div>
+            <div class="sc-label">${m.label}</div>
+            <div class="sc-title">${m.title}</div>
+        </div>
+    `).join('');
+</script>
+</body>
+</html>

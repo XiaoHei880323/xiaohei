@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>商品 - 表单</title>
+    <link rel="stylesheet" href="/admin/static/common.css">
+    <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+    <style>
+        .ql-container { min-height: 200px; background: rgba(255,255,255,.04); color: #e8eaf0; }
+        .ql-toolbar { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.12) !important; }
+        .ql-container { border-color: rgba(255,255,255,.12) !important; }
+        .ql-snow .ql-stroke { stroke: #8a9bc0; }
+        .ql-snow .ql-fill  { fill:   #8a9bc0; }
+        .ql-snow .ql-picker { color:  #8a9bc0; }
+        .ql-editor.ql-blank::before { color: #4a5a7a; }
+    </style>
+</head>
+<body>
+<div class="page-wrap" style="max-width:720px">
+
+    <div class="page-header">
+        <div style="display:flex;align-items:center;gap:12px">
+            <button class="btn btn-secondary" onclick="goBack()">← 返回列表</button>
+            <div>
+                <div class="page-title" id="pg-title">新增商品</div>
+                <div class="page-subtitle">填写商品信息</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display:flex;flex-direction:column;gap:18px;padding:4px 0">
+            <input type="hidden" id="f-id">
+
+            <div class="mf">
+                <label>商品名称 <span class="req">*</span></label>
+                <input type="text" id="f-name" placeholder="请输入商品名称">
+            </div>
+            <div class="mf">
+                <label>商品图片 URL</label>
+                <input type="text" id="f-img" placeholder="请输入图片链接（可选）" oninput="previewImg(this.value)">
+                <img id="f-img-preview" src="" alt="图片预览" style="display:none;margin-top:8px;max-width:100%;max-height:200px;border-radius:6px;border:1px solid rgba(255,255,255,.12)">
+            </div>
+            <div class="mf" style="max-width:300px">
+                <label>商品价格 <span class="req">*</span></label>
+                <input type="text" id="f-price" placeholder="如：99.00">
+            </div>
+            <div class="mf">
+                <label style="display:block;margin-bottom:6px">商品描述（富文本）</label>
+                <div id="f-desc-editor"></div>
+            </div>
+
+            <div style="display:flex;gap:12px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08)">
+                <button class="btn btn-secondary" onclick="goBack()">取消</button>
+                <button class="btn btn-primary"   onclick="doSubmit()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/admin/static/common.js"></script>
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script>
+    Auth.check();
+
+    let quill;
+    window.addEventListener('DOMContentLoaded', function() {
+        quill = new Quill('#f-desc-editor', {
+            theme: 'snow',
+            placeholder: '请输入商品描述（支持图片、链接、HTML 等格式）',
+            modules: {
+                toolbar: [
+                    ['bold', 'italic', 'underline', 'strike'],
+                    ['blockquote', 'code-block'],
+                    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                    [{ 'header': [1, 2, 3, false] }],
+                    ['link', 'image'],
+                    ['clean']
+                ]
+            }
+        });
+
+        const raw  = sessionStorage.getItem('admin_form_good');
+        const item = raw ? JSON.parse(raw) : null;
+        sessionStorage.removeItem('admin_form_good');
+        if (item) {
+            document.getElementById('pg-title').textContent = '编辑商品';
+            document.getElementById('f-id').value           = item.goodId;
+            document.getElementById('f-name').value         = item.goodName  || '';
+            document.getElementById('f-img').value          = item.goodImg   || '';
+            previewImg(item.goodImg);
+            document.getElementById('f-price').value        = item.goodPrice || '';
+            quill.root.innerHTML = item.goodDesc || '';
+        }
+    });
+
+    async function doSubmit() {
+        const id    = document.getElementById('f-id').value;
+        const name  = document.getElementById('f-name').value.trim();
+        const price = document.getElementById('f-price').value.trim();
+        if (!name)  { toast('请输入商品名称', 'err'); return; }
+        if (!price) { toast('请输入商品价格', 'err'); return; }
+        const descHtml = quill ? quill.root.innerHTML : '';
+        const body = {
+            goodName:  name,
+            goodImage: document.getElementById('f-img').value.trim(),
+            goodPrice: price,
+            goodDesc:  descHtml === '<p><br></p>' ? '' : descHtml,
+        };
+        if (id) body.goodId = +id;
+        const data = await api(id ? '/admin/good/update' : '/admin/good/add', body);
+        if (data?.code === 200) {
+            toast(id ? '修改成功' : '新增成功');
+            setTimeout(goBack, 800);
+        } else toast(data?.message || '操作失败', 'err');
+    }
+
+    function goBack() { window.location.href = '/admin/page/goods/list'; }
+
+    function previewImg(url) {
+        const img = document.getElementById('f-img-preview');
+        if (url && url.trim()) { img.src = url.trim(); img.style.display = 'block'; }
+        else { img.src = ''; img.style.display = 'none'; }
+    }
+</script>
+</body>
+</html>

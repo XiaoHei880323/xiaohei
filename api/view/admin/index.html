@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>后台管理系统</title>
+    <style>
+        :root {
+            --bg-dark:   #0f1729;
+            --bg-side:   #131f35;
+            --bg-top:    #1a2744;
+            --bg-card:   #1e2f4d;
+            --bg-hover:  #243660;
+            --accent:    #e94560;
+            --blue:      #4a90e2;
+            --text:      #e8eaf0;
+            --text2:     #8a9bc0;
+            --muted:     #4a5a7a;
+            --border:    rgba(255,255,255,.08);
+            --border-l:  rgba(255,255,255,.12);
+            --shadow:    0 4px 20px rgba(0,0,0,.4);
+            --top-h:     60px;
+            --side-w:    220px;
+            --side-mini: 54px;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+            background: var(--bg-dark); color: var(--text);
+            height: 100vh; overflow: hidden; font-size: 14px;
+        }
+
+        /* ===== TOPBAR ===== */
+        .topbar {
+            position: fixed; top:0; left:0; right:0;
+            height: var(--top-h);
+            background: var(--bg-top);
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center;
+            padding: 0 20px; z-index: 100;
+            box-shadow: var(--shadow); gap: 0;
+        }
+        .tb-logo { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+        .tb-logo .li {
+            width:34px; height:34px;
+            background: linear-gradient(135deg,var(--accent),#0f3460);
+            border-radius:8px; display:flex; align-items:center; justify-content:center;
+            font-size:16px;
+        }
+        .tb-logo .lt { font-size:16px; font-weight:700; letter-spacing:.5px; white-space:nowrap; overflow:hidden; transition: width .25s ease, opacity .25s ease; }
+
+        /* ===== HEADER NAV ===== */
+        .header-nav {
+            display: flex; align-items: center; gap: 2px;
+            flex: 1; padding: 0 20px;
+        }
+        .hn-item { position: relative; }
+        .hn-btn {
+            display: flex; align-items: center; gap: 6px;
+            padding: 7px 13px; border-radius: 6px;
+            font-size: 13px; font-weight: 500;
+            color: var(--text2); cursor: pointer;
+            transition: all .2s; background: none; border: none;
+            user-select: none; white-space: nowrap;
+        }
+        .hn-btn:hover { background: rgba(255,255,255,.06); color: var(--text); }
+        .hn-btn.active { color: var(--blue); background: rgba(74,144,226,.08); }
+        .hn-arr { font-size: 9px; color: var(--muted); transition: transform .2s; }
+        .hn-item.open .hn-arr { transform: rotate(180deg); }
+        .hn-drop {
+            display: none; position: absolute;
+            top: calc(100% + 8px); left: 0; min-width: 140px;
+            background: var(--bg-card); border: 1px solid var(--border-l);
+            border-radius: 8px; box-shadow: 0 8px 28px rgba(0,0,0,.5);
+            z-index: 300; overflow: hidden; padding: 4px 0;
+        }
+        .hn-item.open .hn-drop { display: block; }
+        .hn-drop-item {
+            padding: 9px 16px; font-size: 13px;
+            color: var(--text2); cursor: pointer; transition: background .15s;
+        }
+        .hn-drop-item:hover  { background: var(--bg-hover); color: var(--text); }
+        .hn-drop-item.active { color: var(--blue); background: rgba(74,144,226,.08); }
+
+        /* ===== USER PANEL TRIGGER ===== */
+        .tb-user {
+            display:flex; align-items:center; gap:10px;
+            cursor:pointer; padding:6px 12px; border-radius:8px;
+            transition:background .2s; user-select:none; flex-shrink:0;
+        }
+        .tb-user:hover { background:var(--bg-hover); }
+        .tb-user .av {
+            width:34px; height:34px; border-radius:50%;
+            background:linear-gradient(135deg,var(--blue),var(--accent));
+            display:flex; align-items:center; justify-content:center;
+            font-size:14px; font-weight:700; color:#fff; flex-shrink:0;
+        }
+        .tb-user .uname { font-size:14px; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .tb-user .arr   { font-size:10px; color:var(--text2); transition:transform .2s; }
+        .tb-user.open .arr { transform:rotate(180deg); }
+
+        /* ===== USER PANEL ===== */
+        .user-panel {
+            display:none; position:fixed;
+            top:calc(var(--top-h) + 8px); right:16px;
+            width:280px; background:var(--bg-card);
+            border:1px solid var(--border-l); border-radius:12px;
+            box-shadow:0 8px 32px rgba(0,0,0,.5); z-index:200; overflow:hidden;
+        }
+        .user-panel.on { display:block; }
+        .up-head { background:linear-gradient(135deg,#1a2f5a,#0f3460); padding:24px 20px; text-align:center; }
+        .up-av {
+            width:60px; height:60px; border-radius:50%;
+            background:linear-gradient(135deg,var(--blue),var(--accent));
+            display:flex; align-items:center; justify-content:center;
+            font-size:24px; font-weight:700; color:#fff;
+            margin:0 auto 12px; border:3px solid rgba(255,255,255,.2);
+        }
+        .up-name  { font-size:16px; font-weight:600; }
+        .up-role  { font-size:12px; color:rgba(255,255,255,.5); margin-top:4px; }
+        .up-body  { padding:16px 20px; }
+        .up-row   { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px; color:var(--text2); }
+        .up-row:last-of-type { border-bottom:none; }
+        .up-row .k { width:60px; flex-shrink:0; }
+        .up-row .v { color:var(--text); }
+        .up-actions { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
+        .up-act-btn { width:100%; padding:10px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; transition:all .2s; border:1px solid; }
+        .up-act-btn.edit   { background:rgba(74,144,226,.12); border-color:rgba(74,144,226,.3); color:var(--blue); }
+        .up-act-btn.edit:hover   { background:var(--blue); color:#fff; }
+        .up-act-btn.logout { background:rgba(233,69,96,.12); border-color:rgba(233,69,96,.3); color:var(--accent); }
+        .up-act-btn.logout:hover { background:var(--accent); color:#fff; }
+
+        /* Edit Info Modal */
+        .i-mask { display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:400; align-items:center; justify-content:center; }
+        .i-mask.on { display:flex; }
+        .i-modal { background:var(--bg-card); border:1px solid var(--border-l); border-radius:12px; width:380px; box-shadow:0 12px 40px rgba(0,0,0,.6); overflow:hidden; }
+        .i-hd { padding:16px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; font-size:15px; font-weight:600; }
+        .i-x { background:none; border:none; color:var(--text2); font-size:18px; cursor:pointer; line-height:1; }
+        .i-x:hover { color:var(--text); }
+        .i-bd { padding:20px; display:flex; flex-direction:column; gap:14px; }
+        .i-mf label { display:block; font-size:12px; color:var(--text2); margin-bottom:5px; }
+        .i-mf input { width:100%; padding:9px 12px; background:rgba(255,255,255,.06); border:1px solid var(--border-l); border-radius:6px; color:var(--text); font-size:13px; outline:none; transition:border .2s; }
+        .i-mf input:focus { border-color:var(--blue); }
+        .i-divider { border:none; border-top:1px solid var(--border); margin:4px 0; }
+        .i-hint { font-size:11px; color:var(--muted); }
+        .i-ft { padding:14px 20px; border-top:1px solid var(--border); display:flex; gap:10px; justify-content:flex-end; }
+        .i-btn { padding:8px 20px; border-radius:6px; font-size:13px; cursor:pointer; border:none; transition:all .2s; }
+        .i-btn-sec { background:rgba(255,255,255,.06); color:var(--text2); }
+        .i-btn-sec:hover { background:rgba(255,255,255,.12); }
+        .i-btn-pri { background:var(--blue); color:#fff; }
+        .i-btn-pri:hover { background:#3a7fd5; }
+
+        /* ===== LAYOUT ===== */
+        .layout { display:flex; padding-top:var(--top-h); height:100vh; }
+
+        /* ===== SIDEBAR ===== */
+        .sidebar {
+            width: var(--side-w);
+            background: var(--bg-side);
+            border-right: 1px solid var(--border);
+            overflow: hidden;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            transition: width .25s ease;
+            position: relative;
+        }
+        .sidebar.mini { width: var(--side-mini); }
+        .sidebar-inner {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 8px 0 16px;
+        }
+        .sidebar-inner::-webkit-scrollbar { width: 3px; }
+        .sidebar-inner::-webkit-scrollbar-thumb { background: var(--muted); border-radius:2px; }
+
+        /* Toggle button at top of sidebar */
+        .s-toggle {
+            display: flex; align-items: center;
+            height: 44px; padding: 0 17px;
+            cursor: pointer; border-bottom: 1px solid var(--border);
+            color: var(--text2); font-size: 13px;
+            transition: background .2s, color .2s;
+            user-select: none; flex-shrink: 0;
+            gap: 10px; overflow: hidden; white-space: nowrap;
+        }
+        .s-toggle:hover { background: var(--bg-hover); color: var(--text); }
+        .s-toggle .tog-icon {
+            font-size: 14px; flex-shrink: 0;
+            width: 20px; text-align: center;
+            transition: transform .25s ease;
+        }
+        .sidebar.mini .tog-icon { transform: rotate(180deg); }
+        .s-toggle .tog-label { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .5px; }
+        .sidebar.mini .tog-label { display: none; }
+
+        /* Section heading */
+        .s-sec {
+            padding: 6px 17px; font-size: 11px; font-weight: 600;
+            color: var(--muted); text-transform: uppercase; letter-spacing: 1px;
+            margin-top: 10px; white-space: nowrap; overflow: hidden;
+        }
+        .sidebar.mini .s-sec { opacity: 0; height: 0; margin: 0; padding: 0; }
+
+        /* Parent group */
+        .s-parent {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 17px; cursor: pointer;
+            color: var(--text2); transition: all .2s; user-select: none;
+            white-space: nowrap; overflow: hidden;
+        }
+        .s-parent:hover { color: var(--text); background: var(--bg-hover); }
+        .s-parent .si  { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+        .s-parent .sl  { flex: 1; font-size: 14px; }
+        .s-parent .sa  { font-size: 10px; transition: transform .2s; flex-shrink: 0; }
+        .s-parent.open .sa { transform: rotate(90deg); }
+        .s-parent.grp-on   { color: var(--blue); }
+        .sidebar.mini .s-parent { padding: 11px 0; justify-content: center; gap: 0; }
+        .sidebar.mini .s-parent .sl,
+        .sidebar.mini .s-parent .sa { display: none; }
+
+        /* Children */
+        .s-children  { display: none; }
+        .s-children.open { display: block; }
+        .sidebar.mini .s-children { display: none !important; }
+        .s-child {
+            padding: 8px 17px 8px 45px; cursor: pointer; color: var(--text2);
+            font-size: 13px; transition: all .2s;
+            border-left: 3px solid transparent; white-space: nowrap; overflow: hidden;
+        }
+        .s-child:hover { color: var(--text); background: rgba(255,255,255,.03); }
+        .s-child.on    { color: var(--blue); background: rgba(74,144,226,.1); border-left-color: var(--blue); }
+
+        /* Top-level direct item */
+        .s-top {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 17px; cursor: pointer; color: var(--text2);
+            font-size: 14px; transition: all .2s;
+            border-left: 3px solid transparent;
+            white-space: nowrap; overflow: hidden;
+        }
+        .s-top:hover { color: var(--text); background: var(--bg-hover); }
+        .s-top.on    { color: var(--blue); background: rgba(74,144,226,.1); border-left-color: var(--blue); }
+        .s-top .si   { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+        .sidebar.mini .s-top { padding: 11px 0; justify-content: center; gap: 0; border-left-color: transparent !important; }
+        .sidebar.mini .s-top .si { margin: 0; }
+        .sidebar.mini .s-top span:not(.si) { display: none; }
+        .sidebar.mini .s-top.on .si { color: var(--blue); }
+
+        /* Tooltip for collapsed icons */
+        .sidebar.mini .s-parent,
+        .sidebar.mini .s-top { position: relative; }
+        .sidebar.mini .s-parent:hover::after,
+        .sidebar.mini .s-top:hover::after {
+            content: attr(data-tip);
+            position: absolute; left: calc(var(--side-mini) + 6px); top: 50%;
+            transform: translateY(-50%);
+            background: var(--bg-card); border: 1px solid var(--border-l);
+            color: var(--text); font-size: 12px; padding: 5px 10px;
+            border-radius: 6px; white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(0,0,0,.4); z-index: 500;
+            pointer-events: none;
+        }
+
+        /* ===== CONTENT ===== */
+        .content { flex:1; overflow:hidden; position:relative; }
+        #mainFrame { width:100%; height:100%; border:none; display:block; }
+        .frame-loading { display:none; position:absolute; inset:0; background:var(--bg-dark); align-items:center; justify-content:center; z-index:10; }
+        .frame-loading.on { display:flex; }
+        .ld-spin { width:36px; height:36px; border:3px solid rgba(255,255,255,.1); border-top-color:var(--blue); border-radius:50%; animation:spin .7s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+
+        /* Toast */
+        .toast { position:fixed; bottom:30px; right:30px; padding:12px 20px; border-radius:8px; font-size:13px; font-weight:500; z-index:9999; box-shadow:var(--shadow); animation:tIn .3s ease; max-width:320px; }
+        .toast.ok  { background:#1a3a2a; border:1px solid rgba(46,213,115,.4); color:#2ed573; }
+        .toast.err { background:#3a1a20; border:1px solid rgba(233,69,96,.4);  color:#e94560; }
+        @keyframes tIn { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+    </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+    <div class="tb-logo">
+        <div class="li">🔐</div>
+        <span class="lt">后台管理系统</span>
+    </div>
+
+    <!-- HEADER NAV -->
+    <nav class="header-nav" id="headerNav">
+
+    </nav>
+
+    <div class="tb-user" id="tbUser" onclick="togglePanel()">
+        <div class="av" id="tbAv">A</div>
+        <span class="uname" id="tbName">管理员</span>
+        <span class="arr">▼</span>
+    </div>
+</header>
+
+<!-- USER PANEL -->
+<div class="user-panel" id="userPanel">
+    <div class="up-head">
+        <div class="up-av" id="upAv">A</div>
+        <div class="up-name" id="upName">管理员</div>
+        <div class="up-role" id="upRole">普通管理员</div>
+    </div>
+    <div class="up-body">
+        <div class="up-row"><span class="k">账号</span><span class="v" id="upUser">—</span></div>
+        <div class="up-row"><span class="k">昵称</span><span class="v" id="upNick">—</span></div>
+        <div class="up-actions">
+            <button class="up-act-btn edit"   onclick="openEditInfo()">✏️ 修改个人信息</button>
+            <button class="up-act-btn logout" onclick="doLogout()">🚪 退出登录</button>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT INFO MODAL -->
+<div class="i-mask" id="editMask">
+    <div class="i-modal">
+        <div class="i-hd">
+            <span>修改个人信息</span>
+            <button class="i-x" onclick="closeEditInfo()">✕</button>
+        </div>
+        <div class="i-bd">
+            <div class="i-mf"><label>用户名</label><input type="text" id="ei-uname" placeholder="留空则不修改"></div>
+            <div class="i-mf"><label>昵称</label><input type="text" id="ei-nick" placeholder="留空则不修改"></div>
+            <div class="i-mf"><label>手机号</label><input type="text" id="ei-phone" placeholder="留空则不修改"></div>
+            <hr class="i-divider">
+            <p class="i-hint">修改密码（不改密码留空即可）</p>
+            <div class="i-mf"><label>旧密码</label><input type="password" id="ei-oldpwd" placeholder="请输入当前密码"></div>
+            <div class="i-mf"><label>新密码</label><input type="password" id="ei-newpwd" placeholder="请输入新密码"></div>
+        </div>
+        <div class="i-ft">
+            <button class="i-btn i-btn-sec" onclick="closeEditInfo()">取消</button>
+            <button class="i-btn i-btn-pri" onclick="submitEditInfo()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+
+        <!-- Toggle button -->
+        <div class="s-toggle" onclick="toggleSidebar()" title="收起/展开侧边栏">
+            <span class="tog-icon">◀</span>
+            <span class="tog-label">收起菜单</span>
+        </div>
+
+        <div class="sidebar-inner">
+
+            <!-- 用户管理：仅超级管理员 -->
+            <div id="nav-user-block" style="display:none">
+                <div class="s-sec">用户管理</div>
+                <div class="s-parent open grp-on" id="pg-user" data-tip="用户管理" onclick="toggleGroup('pg-user','gc-user')">
+                    <span class="si">👤</span>
+                    <span class="sl">用户管理</span>
+                    <span class="sa">▶</span>
+                </div>
+                <div class="s-children open" id="gc-user">
+                    <div class="s-child" data-page="user/list"   onclick="goPage('user/list')">用户列表</div>
+                    <div class="s-child" data-page="user/manage" onclick="goPage('user/manage')">管理员管理</div>
+                </div>
+            </div>
+
+            <!-- 功能模块 -->
+            <div class="s-sec">功能模块</div>
+
+            <div class="s-parent" id="pg-course" data-tip="课程管理" onclick="toggleGroup('pg-course','gc-course')">
+                <span class="si">课</span>
+                <span class="sl">课程管理</span>
+                <span class="sa">▶</span>
+            </div>
+            <div class="s-children" id="gc-course">
+                <div class="s-child" data-page="course/student" onclick="goPage('course/student')">学生管理</div>
+                <div class="s-child" data-page="course/teacher" onclick="goPage('course/teacher')">教师管理</div>
+            </div>
+
+            <div class="s-parent" id="pg-activity" data-tip="活动管理" onclick="toggleGroup('pg-activity','gc-activity')">
+                <span class="si">🎉</span>
+                <span class="sl">活动管理</span>
+                <span class="sa">▶</span>
+            </div>
+            <div class="s-children" id="gc-activity">
+                <div class="s-child" data-page="activity/signin"  onclick="goPage('activity/signin')">签到活动</div>
+                <div class="s-child" data-page="activity/seckill" onclick="goPage('activity/seckill')">秒杀活动</div>
+            </div>
+
+            <div class="s-parent" id="pg-feature" data-tip="特色管理" onclick="toggleGroup('pg-feature','gc-feature')">
+                <span class="si">🌟</span>
+                <span class="sl">特色管理</span>
+                <span class="sa">▶</span>
+            </div>
+            <div class="s-children" id="gc-feature">
+                <div class="s-child" data-page="goods/list"  onclick="goPage('goods/list')">商品管理</div>
+                <div class="s-child" data-page="scenic/list" onclick="goPage('scenic/list')">景点管理</div>
+            </div>
+
+            <div class="s-top" data-page="points/rule" data-tip="积分规则" onclick="goPage('points/rule')">
+                <span class="si">💎</span><span>积分规则</span>
+            </div>
+
+            <!-- 首页配置 -->
+            <div class="s-parent" id="pg-home" data-tip="首页配置" onclick="toggleGroup('pg-home','gc-home')">
+                <span class="si">🏠</span>
+                <span class="sl">首页配置</span>
+                <span class="sa">▶</span>
+            </div>
+            <div class="s-children" id="gc-home">
+                <div class="s-child" data-page="home/config"  onclick="goPage('home/config')">活动配置</div>
+                <div class="s-child" data-page="home/notice"  onclick="goPage('home/notice')">公告配置</div>
+            </div>
+
+        </div><!-- /sidebar-inner -->
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <div class="content">
+        <div class="frame-loading on" id="frameLoading"><div class="ld-spin"></div></div>
+        <iframe id="mainFrame" src="/admin/page/welcome"></iframe>
+    </div>
+</div>
+
+<script>
+    // ===== AUTH =====
+    const _info  = (() => { try { return JSON.parse(localStorage.getItem('admin_info')); } catch(e) { return null; } })();
+    const _token = localStorage.getItem('admin_token') || '';
+    if (!_info || !_token) { window.location.href = '/admin/page/login'; }
+
+    const _name = _info.nickName || _info.userName || '管理员';
+    const _init = _name.charAt(0).toUpperCase();
+    document.getElementById('tbAv').textContent   = _init;
+    document.getElementById('tbName').textContent = _name;
+    document.getElementById('upAv').textContent   = _init;
+    document.getElementById('upName').textContent = _name;
+    document.getElementById('upUser').textContent = _info.userName || '—';
+    document.getElementById('upNick').textContent = _info.nickName || '—';
+
+    if (_info.userId === 1) {
+        document.getElementById('nav-user-block').style.display = 'block';
+        document.getElementById('upRole').textContent = '超级管理员';
+    }
+
+    // ===== SIDEBAR COLLAPSE =====
+    const _sb = document.getElementById('sidebar');
+    (function restoreSidebar() {
+        if (localStorage.getItem('sidebar_mini') === '1') _sb.classList.add('mini');
+    })();
+
+    function toggleSidebar() {
+        const isMini = _sb.classList.toggle('mini');
+        localStorage.setItem('sidebar_mini', isMini ? '1' : '0');
+    }
+
+    // In collapsed mode, clicking a parent group expands the sidebar
+    document.querySelectorAll('.s-parent[data-tip]').forEach(el => {
+        el.addEventListener('click', function(e) {
+            if (_sb.classList.contains('mini')) {
+                e.stopPropagation();
+                _sb.classList.remove('mini');
+                localStorage.setItem('sidebar_mini', '0');
+                // Re-trigger the group toggle after a frame to let layout update
+                const id = this.id;
+                if (id) setTimeout(() => {
+                    const groupId = 'gc-' + id.replace('pg-', '');
+                    document.getElementById(id).classList.add('open');
+                    const gc = document.getElementById(groupId);
+                    if (gc) gc.classList.add('open');
+                }, 260);
+            }
+        }, true);
+    });
+
+    // ===== USER PANEL =====
+    function togglePanel() {
+        const p = document.getElementById('userPanel');
+        const b = document.getElementById('tbUser');
+        const on = !p.classList.contains('on');
+        p.classList.toggle('on', on);
+        b.classList.toggle('open', on);
+    }
+    document.addEventListener('click', e => {
+        const p  = document.getElementById('userPanel');
+        const b  = document.getElementById('tbUser');
+        const hn = document.getElementById('headerNav');
+        if (!p.contains(e.target) && !b.contains(e.target)) { p.classList.remove('on'); b.classList.remove('open'); }
+        if (!hn.contains(e.target)) closeAllHn();
+    });
+
+    function doLogout() {
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin_info');
+        window.location.href = '/admin/page/login';
+    }
+
+    // ===== EDIT PERSONAL INFO =====
+    function openEditInfo() {
+        document.getElementById('ei-uname').value  = _info.userName || '';
+        document.getElementById('ei-nick').value   = _info.nickName || '';
+        document.getElementById('ei-phone').value  = _info.phone    || '';
+        document.getElementById('ei-oldpwd').value = '';
+        document.getElementById('ei-newpwd').value = '';
+        document.getElementById('userPanel').classList.remove('on');
+        document.getElementById('tbUser').classList.remove('open');
+        document.getElementById('editMask').classList.add('on');
+    }
+    function closeEditInfo() { document.getElementById('editMask').classList.remove('on'); }
+    async function submitEditInfo() {
+        const uname  = document.getElementById('ei-uname').value.trim();
+        const nick   = document.getElementById('ei-nick').value.trim();
+        const phone  = document.getElementById('ei-phone').value.trim();
+        const oldpwd = document.getElementById('ei-oldpwd').value;
+        const newpwd = document.getElementById('ei-newpwd').value;
+        if ((oldpwd && !newpwd) || (!oldpwd && newpwd)) { showToast('修改密码需同时填写旧密码和新密码', 'err'); return; }
+        const body = { userId: _info.userId };
+        if (uname)  body.userName  = uname;
+        if (nick)   body.relName   = nick;
+        if (phone)  body.phone     = parseInt(phone, 10);
+        if (oldpwd) body.oldPwd    = oldpwd;
+        if (newpwd) body.newOldPwd = newpwd;
+        try {
+            const res  = await fetch('/admin/manager/UpdateInfo', {
+                method:'POST', cache:'no-store',
+                headers:{'Content-Type':'application/json','X-Token':_token},
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            if (data.code === 200) {
+                if (uname) _info.userName = uname;
+                if (nick)  _info.nickName = nick;
+                if (phone) _info.phone    = phone;
+                localStorage.setItem('admin_info', JSON.stringify(_info));
+                const nn = _info.nickName || _info.userName || '管理员';
+                const ni = nn.charAt(0).toUpperCase();
+                ['tbAv','upAv'].forEach(id => document.getElementById(id).textContent = ni);
+                document.getElementById('tbName').textContent = nn;
+                document.getElementById('upName').textContent = nn;
+                document.getElementById('upUser').textContent = _info.userName || '—';
+                document.getElementById('upNick').textContent = _info.nickName || '—';
+                closeEditInfo();
+                showToast('个人信息修改成功');
+            } else showToast(data.message || '修改失败', 'err');
+        } catch(e) { showToast('网络请求失败', 'err'); }
+    }
+
+    // ===== SIDEBAR GROUP TOGGLE =====
+    function toggleGroup(parentId, childId) {
+        document.getElementById(parentId).classList.toggle('open');
+        const gc = document.getElementById(childId);
+        if (gc) gc.classList.toggle('open');
+    }
+
+    // ===== HEADER NAV DROPDOWN =====
+    function toggleHnGroup(id) {
+        const el = document.getElementById(id);
+        const isOpen = el.classList.contains('open');
+        closeAllHn();
+        if (!isOpen) el.classList.add('open');
+    }
+    function closeAllHn() {
+        document.querySelectorAll('.hn-item.open').forEach(el => el.classList.remove('open'));
+    }
+
+    // ===== PAGE NAVIGATION =====
+    let curPage = 'welcome';
+    function goPage(name) {
+        closeAllHn();
+
+        // Clear sidebar active states
+        document.querySelectorAll('.s-child, .s-top').forEach(el => el.classList.remove('on'));
+        const sideEl = document.querySelector(`#sidebar [data-page="${name}"]`);
+        if (sideEl) {
+            sideEl.classList.add('on');
+            if (sideEl.classList.contains('s-child')) {
+                const gc = sideEl.closest('.s-children');
+                if (gc) {
+                    gc.classList.add('open');
+                    const pg = document.getElementById(gc.id.replace('gc-', 'pg-'));
+                    if (pg) pg.classList.add('open', 'grp-on');
+                }
+            }
+        }
+
+        // Clear / set header nav active states
+        document.querySelectorAll('.hn-btn, .hn-drop-item').forEach(el => el.classList.remove('active'));
+        const hnEl = document.querySelector(`#headerNav [data-page="${name}"]`);
+        if (hnEl) {
+            hnEl.classList.add('active');
+            if (hnEl.classList.contains('hn-drop-item')) {
+                const pi = hnEl.closest('.hn-item');
+                if (pi) pi.querySelector('.hn-btn').classList.add('active');
+            }
+        }
+
+        document.getElementById('frameLoading').classList.add('on');
+        document.getElementById('mainFrame').src = '/admin/page/' + name;
+        curPage = name;
+    }
+
+    // Messages from child iframes
+    window.addEventListener('message', e => {
+        if (e.data?.type === 'toast') showToast(e.data.msg, e.data.kind || 'ok');
+        if (e.data?.type === 'nav')   goPage(e.data.page);
+    });
+
+    document.getElementById('mainFrame').addEventListener('load', () => {
+        document.getElementById('frameLoading').classList.remove('on');
+    });
+
+    function showToast(msg, type) {
+        const el = document.createElement('div');
+        el.className = `toast ${type || 'ok'}`;
+        el.textContent = msg;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 3000);
+    }
+</script>
+</body>
+</html>

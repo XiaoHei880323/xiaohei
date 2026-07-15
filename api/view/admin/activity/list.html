@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>活动管理</title>
+    <link rel="stylesheet" href="/admin/static/common.css">
+</head>
+<body>
+<div class="page-wrap">
+
+    <!-- 页头 -->
+    <div class="page-header">
+        <div>
+            <div class="page-title">活动管理</div>
+            <div class="page-subtitle">管理平台活动信息</div>
+        </div>
+        <button class="btn btn-primary" onclick="openModal_ac()">+ 新增活动</button>
+    </div>
+
+    <!-- 搜索 -->
+    <div class="card">
+        <div class="search-form">
+            <div class="f-field">
+                <label>活动名称</label>
+                <input type="text" id="s-name" placeholder="搜索活动名称">
+            </div>
+            <div class="f-field">
+                <label>开始时间</label>
+                <input type="datetime-local" id="s-start">
+            </div>
+            <div class="f-field">
+                <label>结束时间</label>
+                <input type="datetime-local" id="s-end">
+            </div>
+            <button class="btn btn-primary"   onclick="load(1)">搜索</button>
+            <button class="btn btn-secondary" onclick="clearFields('s-name','s-start','s-end');load(1)">重置</button>
+        </div>
+    </div>
+
+    <!-- 表格 -->
+    <div class="card">
+        <div class="tbl-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th><th>活动名称</th><th>图片</th><th>积分</th>
+                        <th>开始时间</th><th>结束时间</th><th>创建时间</th><th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody"></tbody>
+            </table>
+        </div>
+        <div class="pager" id="pager"></div>
+    </div>
+</div>
+
+<!-- 新增 / 编辑 活动 Modal -->
+<div class="mask" id="m-ac">
+    <div class="modal" style="max-width:560px">
+        <div class="modal-hd">
+            <span class="modal-title" id="ac-title">新增活动</span>
+            <button class="modal-x" onclick="closeModal('m-ac')">✕</button>
+        </div>
+        <div class="modal-bd">
+            <input type="hidden" id="ac-id">
+            <div class="mf">
+                <label>活动名称 <span class="req">*</span></label>
+                <input type="text" id="ac-name" placeholder="请输入活动名称">
+            </div>
+            <div class="mf">
+                <label>活动图片 URL</label>
+                <input type="text" id="ac-img" placeholder="请输入图片链接（可选）">
+            </div>
+            <div class="mf">
+                <label>活动描述</label>
+                <textarea id="ac-text" placeholder="请输入活动描述（可选）"></textarea>
+            </div>
+            <div class="mf">
+                <label>开始时间 <span class="req">*</span></label>
+                <input type="datetime-local" id="ac-start">
+            </div>
+            <div class="mf">
+                <label>结束时间 <span class="req">*</span></label>
+                <input type="datetime-local" id="ac-end">
+            </div>
+            <div class="mf">
+                <label>预览时间</label>
+                <input type="datetime-local" id="ac-preview">
+            </div>
+            <div class="mf">
+                <label>积分奖励</label>
+                <input type="number" id="ac-pts" placeholder="0" min="0">
+            </div>
+        </div>
+        <div class="modal-ft">
+            <button class="btn btn-secondary" onclick="closeModal('m-ac')">取消</button>
+            <button class="btn btn-primary"   onclick="submit()">确认</button>
+        </div>
+    </div>
+</div>
+
+<script src="/admin/static/common.js"></script>
+<script>
+    Auth.check();
+
+    let page = 1, total = 0, ps = 15, activitiesMap = {};
+
+    async function load(p) {
+        page = p;
+        document.getElementById('tbody').innerHTML = trLoading(8);
+        const data = await api('/admin/activity/list', {
+            activityName:      document.getElementById('s-name').value.trim(),
+            activityStartTime: fmtDT(document.getElementById('s-start').value),
+            activityEndTime:   fmtDT(document.getElementById('s-end').value),
+            page: p, pageSize: ps
+        });
+        if (!data || data.code !== 200) {
+            document.getElementById('tbody').innerHTML = trEmpty(8, data?.message || '加载失败');
+            return;
+        }
+        const d    = data.data;
+        total      = d.count || 0;
+        const list = d.activityList || [];
+        if (!list.length) {
+            document.getElementById('tbody').innerHTML = trEmpty(8);
+            document.getElementById('pager').innerHTML = '';
+            return;
+        }
+        activitiesMap = {};
+        list.forEach(a => activitiesMap[a.activityId] = a);
+        document.getElementById('tbody').innerHTML = list.map(a => `
+            <tr>
+                <td>${a.activityId}</td>
+                <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(a.activityName)}">${esc(a.activityName)}</td>
+                <td>${imgCell(a.activityImage)}</td>
+                <td><span class="badge badge-b">${a.activityPoints || 0}</span></td>
+                <td>${a.activityStartTime || '—'}</td>
+                <td>${a.activityEndTime   || '—'}</td>
+                <td>${a.activityAddTime   || '—'}</td>
+                <td>
+                    <div class="td-acts">
+                        <button class="btn btn-primary btn-sm" onclick="edit(activitiesMap[${a.activityId}])">编辑</button>
+                        <button class="btn btn-danger btn-sm"  onclick="del(${a.activityId})">删除</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+        renderPager('pager', total, page, ps, 'load');
+    }
+
+    function openModal_ac(item) {
+        document.getElementById('ac-id').value          = item ? item.activityId : '';
+        document.getElementById('ac-title').textContent = item ? '编辑活动' : '新增活动';
+        document.getElementById('ac-name').value        = item?.activityName        || '';
+        document.getElementById('ac-img').value         = item?.activityImage       || '';
+        document.getElementById('ac-text').value        = item?.activityText        || '';
+        document.getElementById('ac-start').value       = toDTLocal(item?.activityStartTime);
+        document.getElementById('ac-end').value         = toDTLocal(item?.activityEndTime);
+        document.getElementById('ac-preview').value     = toDTLocal(item?.activityPreviewTime);
+        document.getElementById('ac-pts').value         = item?.activityPoints      || '';
+        openModal('m-ac');
+    }
+    function edit(item) { openModal_ac(item); }
+
+    async function submit() {
+        const id   = document.getElementById('ac-id').value;
+        const name = document.getElementById('ac-name').value.trim();
+        if (!name) { toast('请输入活动名称', 'err'); return; }
+        const body = {
+            activityName:        name,
+            activityImage:       document.getElementById('ac-img').value.trim(),
+            activityText:        document.getElementById('ac-text').value.trim(),
+            activityStartTime:   fmtDT(document.getElementById('ac-start').value),
+            activityEndTime:     fmtDT(document.getElementById('ac-end').value),
+            activityPreviewTime: fmtDT(document.getElementById('ac-preview').value),
+            activityPoints:      +document.getElementById('ac-pts').value || 0,
+        };
+        if (id) body.activityId = +id;
+        const data = await api(id ? '/admin/activity/updateInfo' : '/admin/activity/add', body);
+        if (data?.code === 200) {
+            toast(id ? '修改成功' : '新增成功');
+            closeModal('m-ac');
+            load(page);
+        } else toast(data?.message || '操作失败', 'err');
+    }
+
+    async function del(activityId) {
+        if (!confirm('确认删除此活动？')) return;
+        const data = await api('/admin/activity/delete', { activityId });
+        if (data?.code === 200) { toast('删除成功'); load(page); }
+        else toast(data?.message || '删除失败', 'err');
+    }
+
+    load(1);
+</script>
+</body>
+</html>

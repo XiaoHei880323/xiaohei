@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>签到活动 - 景点管理</title>
+    <link rel="stylesheet" href="/admin/static/common.css">
+    <style>
+        .points-banner {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(74,144,226,.15);
+            border: 1px solid rgba(74,144,226,.3);
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 14px;
+            color: #e8eaf0;
+        }
+        .points-banner .pv {
+            font-size: 20px;
+            font-weight: 700;
+            color: #4a90e2;
+        }
+        .back-btn { margin-right: 12px; }
+    </style>
+</head>
+<body>
+<div class="page-wrap">
+
+    <!-- 页头 -->
+    <div class="page-header">
+        <div style="display:flex;align-items:center">
+            <button class="btn btn-secondary back-btn" onclick="goBack()">← 返回</button>
+            <div>
+                <div class="page-title" id="pg-title">景点管理</div>
+                <div class="page-subtitle" id="pg-sub">管理签到活动的景点关联</div>
+            </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px">
+            <div class="points-banner">
+                活动总积分：<span class="pv" id="total-points">0</span> 分
+            </div>
+            <button class="btn btn-primary" onclick="openAddModal()">+ 添加景点</button>
+        </div>
+    </div>
+
+    <!-- 表格 -->
+    <div class="card">
+        <div class="tbl-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th><th>景点名称</th><th>签到积分</th><th>二维码地址</th>
+                        <th>状态</th><th>添加时间</th><th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody"></tbody>
+            </table>
+        </div>
+        <div class="pager" id="pager"></div>
+    </div>
+</div>
+
+<!-- 添加景点 Modal -->
+<div class="mask" id="m-add">
+    <div class="modal" style="max-width:520px">
+        <div class="modal-hd">
+            <span class="modal-title">添加景点到活动</span>
+            <button class="modal-x" onclick="closeModal('m-add')">✕</button>
+        </div>
+        <div class="modal-bd">
+            <div class="mf">
+                <label>选择景点 <span class="req">*</span></label>
+                <select id="add-scenic-id" style="width:100%;padding:9px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:6px;color:#e8eaf0;font-size:13px;outline:none">
+                    <option value="">-- 请选择景点 --</option>
+                </select>
+            </div>
+            <div class="mf">
+                <label>签到积分 <span class="req">*</span></label>
+                <input type="number" id="add-points" placeholder="请输入签到获得积分" min="0">
+            </div>
+            <div class="mf">
+                <label>二维码地址</label>
+                <input type="text" id="add-qr" placeholder="请输入二维码图片 URL（可选）">
+            </div>
+            <div class="mf">
+                <label>状态</label>
+                <select id="add-status" style="width:100%;padding:9px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:6px;color:#e8eaf0;font-size:13px;outline:none">
+                    <option value="1">启用</option>
+                    <option value="0">禁用</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-ft">
+            <button class="btn btn-secondary" onclick="closeModal('m-add')">取消</button>
+            <button class="btn btn-primary"   onclick="submitAdd()">确认添加</button>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑景点关联 Modal -->
+<div class="mask" id="m-edit">
+    <div class="modal" style="max-width:520px">
+        <div class="modal-hd">
+            <span class="modal-title">编辑景点关联</span>
+            <button class="modal-x" onclick="closeModal('m-edit')">✕</button>
+        </div>
+        <div class="modal-bd">
+            <input type="hidden" id="edit-id">
+            <div class="mf">
+                <label>景点名称</label>
+                <input type="text" id="edit-scenic-name" readonly style="opacity:.6;cursor:default">
+            </div>
+            <div class="mf">
+                <label>签到积分 <span class="req">*</span></label>
+                <input type="number" id="edit-points" placeholder="请输入签到获得积分" min="0">
+            </div>
+            <div class="mf">
+                <label>二维码地址</label>
+                <input type="text" id="edit-qr" placeholder="请输入二维码图片 URL（可选）">
+            </div>
+            <div class="mf">
+                <label>状态</label>
+                <select id="edit-status" style="width:100%;padding:9px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:6px;color:#e8eaf0;font-size:13px;outline:none">
+                    <option value="1">启用</option>
+                    <option value="0">禁用</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-ft">
+            <button class="btn btn-secondary" onclick="closeModal('m-edit')">取消</button>
+            <button class="btn btn-primary"   onclick="submitEdit()">保存修改</button>
+        </div>
+    </div>
+</div>
+
+<!-- 删除确认 Modal -->
+<div class="mask" id="m-del">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-hd">
+            <span class="modal-title">确认删除</span>
+            <button class="modal-x" onclick="closeModal('m-del')">✕</button>
+        </div>
+        <div class="modal-bd" style="padding:20px 24px">
+            <p style="color:#e8eaf0;line-height:1.6">
+                确认将景点 "<strong id="del-name" style="color:#e94560"></strong>" 从活动中移除？
+            </p>
+        </div>
+        <div class="modal-ft">
+            <button class="btn btn-secondary" onclick="closeModal('m-del')">取消</button>
+            <button class="btn btn-danger"    onclick="confirmDel()">确认移除</button>
+        </div>
+    </div>
+</div>
+
+<script src="/admin/static/common.js"></script>
+<script>
+    Auth.check();
+
+    // Parse URL params
+    const _params     = new URLSearchParams(window.location.search);
+    const activityId  = parseInt(_params.get('activityId') || '0', 10);
+    const activityName = _params.get('activityName') || '签到活动';
+
+    document.getElementById('pg-title').textContent = activityName + ' - 景点管理';
+    document.getElementById('pg-sub').textContent   = '管理「' + activityName + '」的签到景点';
+
+    let page = 1, total = 0, ps = 50;
+    let pendingDelId = 0, signinScenicMap = {};
+
+    async function load(p) {
+        page = p;
+        document.getElementById('tbody').innerHTML = trLoading(7);
+        const data = await api('/admin/activity/signin/scenic/list', {
+            activityId, page: p, pageSize: ps
+        });
+        if (!data || data.code !== 200) {
+            document.getElementById('tbody').innerHTML = trEmpty(7, data?.message || '加载失败');
+            return;
+        }
+        const d    = data.data;
+        total      = d.count || 0;
+        document.getElementById('total-points').textContent = d.totalPoints || 0;
+        const list = d.list || [];
+        if (!list.length) {
+            document.getElementById('tbody').innerHTML = trEmpty(7, '暂无关联景点，请点击「添加景点」');
+            document.getElementById('pager').innerHTML = '';
+            return;
+        }
+        signinScenicMap = {};
+        list.forEach(item => signinScenicMap[item.id] = item);
+        document.getElementById('tbody').innerHTML = list.map(item => `
+            <tr>
+                <td>${item.id}</td>
+                <td>${esc(item.spotName)}</td>
+                <td><span class="badge badge-b">${item.signPoints}</span></td>
+                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.qrCodeUrl)}">
+                    ${item.qrCodeUrl ? `<a href="${esc(item.qrCodeUrl)}" target="_blank" style="color:#4a90e2">查看二维码</a>` : '—'}
+                </td>
+                <td>${item.status === 1
+                    ? '<span class="badge badge-g">启用</span>'
+                    : '<span class="badge badge-r">禁用</span>'}</td>
+                <td>${item.addTime || '—'}</td>
+                <td>
+                    <div class="td-acts">
+                        <button class="btn btn-primary btn-sm" onclick="openEditModal(signinScenicMap[${item.id}])">编辑</button>
+                        <button class="btn btn-danger  btn-sm" onclick="del(${item.id}, '${esc(item.spotName)}')">移除</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+        renderPager('pager', total, page, ps, 'load');
+    }
+
+    // Load scenic spot list for select
+    async function loadScenicOptions() {
+        const data = await api('/admin/scenic/list', { page: 1, pageSize: 200 });
+        const sel  = document.getElementById('add-scenic-id');
+        sel.innerHTML = '<option value="">-- 请选择景点 --</option>';
+        if (data?.code === 200) {
+            (data.data.list || []).forEach(s => {
+                const opt = document.createElement('option');
+                opt.value       = s.id;
+                opt.textContent = s.spotName;
+                sel.appendChild(opt);
+            });
+        }
+    }
+
+    function openAddModal() {
+        document.getElementById('add-scenic-id').value = '';
+        document.getElementById('add-points').value    = '';
+        document.getElementById('add-qr').value        = '';
+        document.getElementById('add-status').value    = '1';
+        loadScenicOptions();
+        openModal('m-add');
+    }
+
+    async function submitAdd() {
+        const scenicId   = +document.getElementById('add-scenic-id').value;
+        const signPoints = +document.getElementById('add-points').value;
+        if (!scenicId)    { toast('请选择景点', 'err'); return; }
+        if (!signPoints && signPoints !== 0) { toast('请输入签到积分', 'err'); return; }
+        const body = {
+            activityId,
+            scenicId,
+            signPoints,
+            qrCodeUrl: document.getElementById('add-qr').value.trim(),
+            status:    +document.getElementById('add-status').value,
+        };
+        const data = await api('/admin/activity/signin/scenic/add', body);
+        if (data?.code === 200) {
+            toast('添加成功');
+            closeModal('m-add');
+            load(page);
+        } else toast(data?.message || '添加失败', 'err');
+    }
+
+    function openEditModal(item) {
+        document.getElementById('edit-id').value          = item.id;
+        document.getElementById('edit-scenic-name').value = item.spotName;
+        document.getElementById('edit-points').value      = item.signPoints;
+        document.getElementById('edit-qr').value          = item.qrCodeUrl || '';
+        document.getElementById('edit-status').value      = String(item.status);
+        openModal('m-edit');
+    }
+
+    async function submitEdit() {
+        const id         = +document.getElementById('edit-id').value;
+        const signPoints = +document.getElementById('edit-points').value;
+        const body = {
+            id,
+            signPoints,
+            qrCodeUrl: document.getElementById('edit-qr').value.trim(),
+            status:    +document.getElementById('edit-status').value,
+        };
+        const data = await api('/admin/activity/signin/scenic/updateInfo', body);
+        if (data?.code === 200) {
+            toast('修改成功');
+            closeModal('m-edit');
+            load(page);
+        } else toast(data?.message || '修改失败', 'err');
+    }
+
+    function del(id, name) {
+        pendingDelId = id;
+        document.getElementById('del-name').textContent = name;
+        openModal('m-del');
+    }
+
+    async function confirmDel() {
+        if (!pendingDelId) return;
+        const data = await api('/admin/activity/signin/scenic/delete', { id: pendingDelId });
+        closeModal('m-del');
+        if (data?.code === 200) { toast('移除成功'); load(page); }
+        else toast(data?.message || '移除失败', 'err');
+    }
+
+    function goBack() {
+        window.parent.document.getElementById('mainFrame').src = '/admin/page/activity/signin';
+    }
+
+    if (!activityId) {
+        document.getElementById('tbody').innerHTML = '<tr><td colspan="7" style="text-align:center;color:#e94560">缺少活动ID，请从签到活动页进入</td></tr>';
+    } else {
+        load(1);
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>管理员管理</title>
+    <link rel="stylesheet" href="/admin/static/common.css">
+</head>
+<body>
+<div class="page-wrap">
+
+    <!-- 页头 -->
+    <div class="page-header">
+        <div>
+            <div class="page-title">管理员管理</div>
+            <div class="page-subtitle">管理后台管理员账号</div>
+        </div>
+        <button class="btn btn-primary" onclick="openAdd()">+ 新增管理员</button>
+    </div>
+
+    <!-- 搜索 -->
+    <div class="card">
+        <div class="search-form">
+            <div class="f-field">
+                <label>手机号</label>
+                <input type="text" id="s-phone" placeholder="搜索手机号">
+            </div>
+            <div class="f-field">
+                <label>用户名</label>
+                <input type="text" id="s-uname" placeholder="搜索用户名">
+            </div>
+            <div class="f-field">
+                <label>真实姓名</label>
+                <input type="text" id="s-rname" placeholder="搜索真实姓名">
+            </div>
+            <button class="btn btn-primary"   onclick="load(1)">搜索</button>
+            <button class="btn btn-secondary" onclick="clearFields('s-phone','s-uname','s-rname');load(1)">重置</button>
+        </div>
+    </div>
+
+    <!-- 表格 -->
+    <div class="card">
+        <div class="tbl-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th><th>用户名</th><th>真实姓名</th>
+                        <th>状态</th><th>创建时间</th><th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody"></tbody>
+            </table>
+        </div>
+        <div class="pager" id="pager"></div>
+    </div>
+</div>
+
+<!-- 新增管理员 Modal -->
+<div class="mask" id="m-add">
+    <div class="modal">
+        <div class="modal-hd">
+            <span class="modal-title">新增管理员</span>
+            <button class="modal-x" onclick="closeModal('m-add')">✕</button>
+        </div>
+        <div class="modal-bd">
+            <div class="mf">
+                <label>用户名 <span class="req">*</span></label>
+                <input type="text" id="a-uname" placeholder="请输入用户名">
+            </div>
+            <div class="mf">
+                <label>真实姓名 <span class="req">*</span></label>
+                <input type="text" id="a-rname" placeholder="请输入真实姓名">
+            </div>
+            <div class="mf">
+                <label>手机号 <span class="req">*</span></label>
+                <input type="text" id="a-phone" placeholder="请输入手机号">
+            </div>
+            <p style="font-size:12px;color:var(--muted)">初始密码为 123456，首次登录后请修改</p>
+        </div>
+        <div class="modal-ft">
+            <button class="btn btn-secondary" onclick="closeModal('m-add')">取消</button>
+            <button class="btn btn-primary"   onclick="submitAdd()">确认添加</button>
+        </div>
+    </div>
+</div>
+
+<script src="/admin/static/common.js"></script>
+<script>
+    Auth.check();
+
+    let page = 1, total = 0, ps = 15;
+    const selfInfo = Auth.getInfo();
+
+    async function load(p) {
+        page = p;
+        document.getElementById('tbody').innerHTML = trLoading(6);
+        const data = await api('/admin/manager/getAdminUserList', {
+            phone:    document.getElementById('s-phone').value.trim(),
+            userName: document.getElementById('s-uname').value.trim(),
+            relName:  document.getElementById('s-rname').value.trim(),
+            page: p, pageSize: ps
+        });
+        if (!data || data.code !== 200) {
+            document.getElementById('tbody').innerHTML = trEmpty(6, data?.message || '加载失败');
+            return;
+        }
+        const d = data.data;
+        total = d.count || 0;
+        const list = d.adminList || [];
+        if (!list.length) {
+            document.getElementById('tbody').innerHTML = trEmpty(6);
+            document.getElementById('pager').innerHTML = '';
+            return;
+        }
+        document.getElementById('tbody').innerHTML = list.map(u => `
+            <tr>
+                <td>${u.userId}</td>
+                <td>${esc(u.userName || '—')}</td>
+                <td>${esc(u.nickName  || '—')}</td>
+                <td><span class="badge ${u.status === 0 ? 'badge-g' : 'badge-r'}">${u.status === 0 ? '正常' : '禁用'}</span></td>
+                <td>${u.createAt || '—'}</td>
+                <td>
+                    <div class="td-acts">
+                        <button class="btn btn-warning btn-sm" onclick="resetPwd(${u.userId})">重置密码</button>
+                        <button class="btn ${u.status === 0 ? 'btn-danger' : 'btn-success'} btn-sm"
+                            onclick="toggleStatus(${u.userId})">${u.status === 0 ? '禁用' : '启用'}</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+        renderPager('pager', total, page, ps, 'load');
+    }
+
+    async function resetPwd(updateUserId) {
+        if (!confirm('确认重置该管理员密码为 123456？')) return;
+        const data = await api('/admin/manager/updateAdminUser', {
+            userId: selfInfo.userId, updateUserId, type: 1
+        });
+        if (data?.code === 200) toast('密码已重置为 123456');
+        else toast(data?.message || '操作失败', 'err');
+    }
+
+    async function toggleStatus(updateUserId) {
+        if (!confirm('确认修改该管理员账号状态？')) return;
+        const data = await api('/admin/manager/updateAdminUser', {
+            userId: selfInfo.userId, updateUserId, type: 2
+        });
+        if (data?.code === 200) { toast('状态修改成功'); load(page); }
+        else toast(data?.message || '操作失败', 'err');
+    }
+
+    function openAdd() {
+        clearFields('a-uname', 'a-rname', 'a-phone');
+        openModal('m-add');
+    }
+    async function submitAdd() {
+        const userName = document.getElementById('a-uname').value.trim();
+        const relName  = document.getElementById('a-rname').value.trim();
+        const phone    = document.getElementById('a-phone').value.trim();
+        if (!userName || !relName || !phone) { toast('请填写完整信息', 'err'); return; }
+        const data = await api('/admin/manager/addAdminUser', {
+            userId: selfInfo.userId, userName, relName, phone
+        });
+        if (data?.code === 200) {
+            toast('添加成功，初始密码 123456');
+            closeModal('m-add');
+            load(1);
+        } else toast(data?.message || '添加失败', 'err');
+    }
+
+    load(1);
+</script>
+</body>
+</html>

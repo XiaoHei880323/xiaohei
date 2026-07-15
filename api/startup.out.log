@@ -1,0 +1,6 @@
+Starting server at 0.0.0.0:8888...
+                                      
+token=> eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzYzOTY0NjcsImlhdCI6MTc3NjM5Mjg2NywidXNlcklkIjoxfQ.EBO4ErDuJaH9fK_qWhpPD1tVvD50y6-DiEj_HDSIfDY                                      
+tokenString =>  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NzYzOTY0NjcsImlhdCI6MTc3NjM5Mjg2NywidXNlcklkIjoxfQ.EBO4ErDuJaH9fK_qWhpPD1tVvD50y6-DiEj_HDSIfDY
+token.claims=> map[exp:1.776396467e+09 iat:1.776392867e+09 userId:1]
+token.Valid=> truetokenMap => map[exp:1.776396467e+09 iat:1.776392867e+09 userId:1]{"@timestamp":"2026-04-17T10:27:47.864+08:00","caller":"handler/loghandler.go:147","content":"[HTTP] 200 - GET /from/xiaohe - 127.0.0.1:55605 - Mozilla/5.0 (Windows NT; Windows NT 10.0; zh-CN) WindowsPowerShell/5.1.19041.6456","duration":"29.2ms","level":"info","span":"e483e3c511bda8f7","trace":"021c829e9c04858309b18478dcc57bb8"}

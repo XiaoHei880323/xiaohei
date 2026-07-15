@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>秒杀活动商品</title>
+    <link rel="stylesheet" href="/admin/static/common.css">
+    <style>
+        .batch-bar {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            background: rgba(74,144,226,.1);
+            border: 1px solid rgba(74,144,226,.3);
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        .batch-bar.on { display: flex; }
+        .batch-bar .sel-info { flex: 1; font-size: 13px; color: #4a90e2; }
+        .back-btn { font-size: 13px; cursor: pointer; color: #8a9bc0; text-decoration: none; margin-right: 8px; }
+        .back-btn:hover { color: #e8eaf0; }
+    </style>
+</head>
+<body>
+<div class="page-wrap">
+
+    <!-- 页头 -->
+    <div class="page-header">
+        <div>
+            <a class="back-btn" onclick="history.back()">← 返回</a>
+            <div class="page-title" id="page-title">秒杀活动商品</div>
+            <div class="page-subtitle" id="page-subtitle">管理活动商品及秒杀价格</div>
+        </div>
+        <button class="btn btn-primary" onclick="openAddModal()">+ 添加商品</button>
+    </div>
+
+    <!-- 搜索 -->
+    <div class="card">
+        <div class="search-form">
+            <div class="f-field">
+                <label>商品名称</label>
+                <input type="text" id="s-name" placeholder="搜索商品名称">
+            </div>
+            <button class="btn btn-primary"   onclick="load(1)">搜索</button>
+            <button class="btn btn-secondary" onclick="clearFields('s-name');load(1)">重置</button>
+        </div>
+    </div>
+
+    <!-- 批量操作栏 -->
+    <div class="batch-bar" id="batchBar">
+        <span class="sel-info">已选 <span id="selCount">0</span> 条</span>
+        <button class="btn btn-secondary btn-sm" onclick="batchUpdatePrice()">批量调整价格</button>
+        <button class="btn btn-danger btn-sm"    onclick="batchDelete()">批量删除</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearSel()">取消选择</button>
+    </div>
+
+    <!-- 表格 -->
+    <div class="card">
+        <div class="tbl-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:40px"><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>
+                        <th>ID</th><th>商品名称</th><th>图片</th>
+                        <th>原价(¥)</th><th>秒杀价(¥)</th><th>添加时间</th><th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody"></tbody>
+            </table>
+        </div>
+        <div class="pager" id="pager"></div>
+    </div>
+</div>
+
+<!-- 添加商品 Modal -->
+<div class="mask" id="m-add">
+    <div class="modal" style="max-width:480px">
+        <div class="modal-hd">
+            <span class="modal-title">添加秒杀商品</span>
+            <button class="modal-x" onclick="closeModal('m-add')">✕</button>
+        </div>
+        <div class="modal-bd">
+            <div class="mf">
+                <label>选择商品 <span class="req">*</span></label>
+                <select id="add-goodId" style="width:100%;padding:9px 12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:6px;color:#e8eaf0;font-size:13px;outline:none">
+                    <option value="">-- 请选择商品 --</option>
+                </select>
+            </div>
+            <div class="mf">
+                <label>秒杀价 <span class="req">*</span></label>
+                <input type="number" id="add-price" placeholder="请输入秒杀价格" min="0" step="0.01">
+            </div>
+        </div>
+        <div class="modal-ft">
+            <button class="btn btn-secondary" onclick="closeModal('m-add')">取消</button>
+            <button class="btn btn-primary"   onclick="submitAdd()">确认添加</button>
+        </div>
+    </div>
+</div>
+
+<!-- 修改秒杀价 Modal -->
+<div class="mask" id="m-edit">
+    <div class="modal" style="max-width:400px">
+        <div class="modal-hd">
+            <span class="modal-title">修改秒杀价</span>
+            <button class="modal-x" onclick="closeModal('m-edit')">✕</button>
+        </div>
+        <div class="modal-bd">
+            <input type="hidden" id="edit-id">
+            <div class="mf">
+                <label>商品名称</label>
+                <input type="text" id="edit-goodName" readonly style="opacity:.6">
+            </div>
+            <div class="mf">
+                <label>秒杀价 <span class="req">*</span></label>
+                <input type="number" id="edit-price" placeholder="请输入新的秒杀价格" min="0" step="0.01">
+            </div>
+        </div>
+        <div class="modal-ft">
+            <button class="btn btn-secondary" onclick="closeModal('m-edit')">取消</button>
+            <button class="btn btn-primary"   onclick="submitEdit()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 批量调价 Modal -->
+<div class="mask" id="m-batch-price">
+    <div class="modal" style="max-width:380px">
+        <div class="modal-hd">
+            <span class="modal-title">批量调整秒杀价</span>
+            <button class="modal-x" onclick="closeModal('m-batch-price')">✕</button>
+        </div>
+        <div class="modal-bd">
+            <div class="mf">
+                <label>新秒杀价 <span class="req">*</span></label>
+                <input type="number" id="batch-price" placeholder="所有选中商品统一调整为此价格" min="0" step="0.01">
+            </div>
+        </div>
+        <div class="modal-ft">
+            <button class="btn btn-secondary" onclick="closeModal('m-batch-price')">取消</button>
+            <button class="btn btn-primary"   onclick="submitBatchPrice()">确认</button>
+        </div>
+    </div>
+</div>
+
+<script src="/admin/static/common.js"></script>
+<script>
+    Auth.check();
+
+    // 从 URL query 读取活动 ID 和名称
+    const _qs         = new URLSearchParams(window.location.search);
+    const _activityId = parseInt(_qs.get('activityId') || '0', 10);
+    const _actName    = _qs.get('activityName') || ('活动 #' + _activityId);
+
+    document.getElementById('page-title').textContent    = _actName + ' — 秒杀商品';
+    document.getElementById('page-subtitle').textContent = '活动ID: ' + _activityId;
+
+    let page = 1, total = 0, ps = 15, seckillGoodsMap = {};
+    let selectedIds = new Set();
+
+    // ===== 列表 =====
+    async function load(p) {
+        page = p;
+        selectedIds.clear();
+        updateBatchBar();
+        document.getElementById('checkAll').checked = false;
+        document.getElementById('tbody').innerHTML = trLoading(8);
+        const data = await api('/admin/activity/seckill/good/list', {
+            activityId: _activityId,
+            goodName:   document.getElementById('s-name').value.trim(),
+            page: p, pageSize: ps
+        });
+        if (!data || data.code !== 200) {
+            document.getElementById('tbody').innerHTML = trEmpty(8, data?.message || '加载失败');
+            return;
+        }
+        const d    = data.data;
+        total      = d.count || 0;
+        const list = d.list  || [];
+        if (!list.length) {
+            document.getElementById('tbody').innerHTML = trEmpty(8, '暂无商品，点击右上角添加');
+            document.getElementById('pager').innerHTML = '';
+            return;
+        }
+        seckillGoodsMap = {};
+        list.forEach(item => seckillGoodsMap[item.id] = item);
+        document.getElementById('tbody').innerHTML = list.map(item => `
+            <tr>
+                <td><input type="checkbox" class="row-cb" data-id="${item.id}" onchange="onRowCheck(this)"></td>
+                <td>${item.id}</td>
+                <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.goodName)}">${esc(item.goodName)}</td>
+                <td>${imgCell(item.goodImg)}</td>
+                <td>¥${item.goodPrice || '—'}</td>
+                <td><span class="badge badge-b">¥${item.seckillPrice}</span></td>
+                <td>${item.addTime || '—'}</td>
+                <td>
+                    <div class="td-acts">
+                        <button class="btn btn-primary btn-sm" onclick="openEditModal(seckillGoodsMap[${item.id}])">修改价格</button>
+                        <button class="btn btn-danger btn-sm"  onclick="del(${item.id})">删除</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+        renderPager('pager', total, page, ps, 'load');
+    }
+
+    // ===== 勾选逻辑 =====
+    function onRowCheck(cb) {
+        const id = parseInt(cb.dataset.id, 10);
+        if (cb.checked) selectedIds.add(id);
+        else            selectedIds.delete(id);
+        updateBatchBar();
+        syncCheckAll();
+    }
+    function toggleAll(cb) {
+        document.querySelectorAll('.row-cb').forEach(el => {
+            el.checked = cb.checked;
+            const id = parseInt(el.dataset.id, 10);
+            if (cb.checked) selectedIds.add(id);
+            else            selectedIds.delete(id);
+        });
+        updateBatchBar();
+    }
+    function syncCheckAll() {
+        const all  = document.querySelectorAll('.row-cb');
+        const chk  = document.querySelectorAll('.row-cb:checked');
+        document.getElementById('checkAll').checked = all.length > 0 && all.length === chk.length;
+    }
+    function updateBatchBar() {
+        const bar = document.getElementById('batchBar');
+        const n   = selectedIds.size;
+        bar.classList.toggle('on', n > 0);
+        document.getElementById('selCount').textContent = n;
+    }
+    function clearSel() {
+        selectedIds.clear();
+        document.querySelectorAll('.row-cb').forEach(el => el.checked = false);
+        document.getElementById('checkAll').checked = false;
+        updateBatchBar();
+    }
+
+    // ===== 添加商品 =====
+    async function openAddModal() {
+        // 加载商品列表填充 select
+        const sel = document.getElementById('add-goodId');
+        sel.innerHTML = '<option value="">加载中...</option>';
+        document.getElementById('add-price').value = '';
+        openModal('m-add');
+        const data = await api('/admin/good/list', { page: 1, pageSize: 999 });
+        if (data?.code === 200) {
+            const goods = data.data?.goodList || [];
+            sel.innerHTML = '<option value="">-- 请选择商品 --</option>' +
+                goods.map(g => `<option value="${g.goodId}" data-price="${esc(g.goodPrice)}">${esc(g.goodName)}（原价 ¥${g.goodPrice}）</option>`).join('');
+        } else {
+            sel.innerHTML = '<option value="">加载失败</option>';
+        }
+    }
+    async function submitAdd() {
+        const goodId = parseInt(document.getElementById('add-goodId').value, 10);
+        const price  = document.getElementById('add-price').value.trim();
+        if (!goodId) { toast('请选择商品', 'err'); return; }
+        if (!price)  { toast('请输入秒杀价', 'err'); return; }
+        const data = await api('/admin/activity/seckill/good/add', {
+            activityId:   _activityId,
+            goodId:       goodId,
+            seckillPrice: price
+        });
+        if (data?.code === 200) { toast('添加成功'); closeModal('m-add'); load(page); }
+        else toast(data?.message || '添加失败', 'err');
+    }
+
+    // ===== 修改秒杀价 =====
+    function openEditModal(item) {
+        document.getElementById('edit-id').value         = item.id;
+        document.getElementById('edit-goodName').value   = item.goodName;
+        document.getElementById('edit-price').value      = item.seckillPrice;
+        openModal('m-edit');
+    }
+    async function submitEdit() {
+        const id    = parseInt(document.getElementById('edit-id').value, 10);
+        const price = document.getElementById('edit-price').value.trim();
+        if (!price) { toast('请输入秒杀价', 'err'); return; }
+        const data = await api('/admin/activity/seckill/good/updateInfo', { id, seckillPrice: price });
+        if (data?.code === 200) { toast('修改成功'); closeModal('m-edit'); load(page); }
+        else toast(data?.message || '修改失败', 'err');
+    }
+
+    // ===== 删除 =====
+    async function del(id) {
+        if (!confirm('确认从活动中移除该商品？')) return;
+        const data = await api('/admin/activity/seckill/good/delete', { id });
+        if (data?.code === 200) { toast('删除成功'); load(page); }
+        else toast(data?.message || '删除失败', 'err');
+    }
+
+    // ===== 批量调价 =====
+    function batchUpdatePrice() {
+        if (!selectedIds.size) { toast('请先选择商品', 'err'); return; }
+        document.getElementById('batch-price').value = '';
+        openModal('m-batch-price');
+    }
+    async function submitBatchPrice() {
+        const price = document.getElementById('batch-price').value.trim();
+        if (!price) { toast('请输入秒杀价', 'err'); return; }
+        const data = await api('/admin/activity/seckill/good/batchUpdatePrice', {
+            ids:          [...selectedIds],
+            seckillPrice: price
+        });
+        if (data?.code === 200) { toast('批量调价成功'); closeModal('m-batch-price'); clearSel(); load(page); }
+        else toast(data?.message || '批量调价失败', 'err');
+    }
+
+    // ===== 批量删除 =====
+    async function batchDelete() {
+        if (!selectedIds.size) { toast('请先选择商品', 'err'); return; }
+        if (!confirm(`确认删除已选 ${selectedIds.size} 条商品？`)) return;
+        const data = await api('/admin/activity/seckill/good/batchDelete', { ids: [...selectedIds] });
+        if (data?.code === 200) { toast('批量删除成功'); clearSel(); load(page); }
+        else toast(data?.message || '批量删除失败', 'err');
+    }
+
+    load(1);
+</script>
+</body>
+</html>

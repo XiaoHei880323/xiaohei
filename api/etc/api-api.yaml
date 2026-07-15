@@ -1,0 +1,9 @@
+Name: api-api
+Host: 0.0.0.0
+Port: 8888
+
+Mysql:
+  DataSource: root:123456@tcp(127.0.0.1)/culture?charset=utf8mb4&loc=Asia%2FShanghai&parseTime=true
+Auth:
+  AdminSecretKey: adminSecretkeySheYangWenHuaJuHuHaoYaoQiuAdmin
+  UserSecretKey: UserSecretkeySheYangWenHuaJuHuHaoYaoQiuUser

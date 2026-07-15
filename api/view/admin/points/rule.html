@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>积分规则</title>
+    <link rel="stylesheet" href="/admin/static/common.css">
+    <style>
+        .view { display: none; }
+        .view.on { display: block; }
+        .form-wrap { max-width: 760px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .form-footer { display:flex; gap:12px; padding-top:16px; border-top:1px solid rgba(255,255,255,.08); margin-top:8px; }
+    </style>
+</head>
+<body>
+<div class="page-wrap">
+
+    <!-- ===== LIST VIEW ===== -->
+    <div id="v-list" class="view on">
+        <div class="page-header">
+            <div>
+                <div class="page-title">积分规则</div>
+                <div class="page-subtitle">管理积分兑换规则</div>
+            </div>
+            <button class="btn btn-primary" onclick="showForm()">+ 新增规则</button>
+        </div>
+
+        <div class="card">
+            <div class="search-form">
+                <div class="f-field">
+                    <label>商品名称</label>
+                    <input type="text" id="s-gname" placeholder="搜索商品名称">
+                </div>
+                <div class="f-field">
+                    <label>积分下限</label>
+                    <input type="number" id="s-pstart" placeholder="0" min="0">
+                </div>
+                <div class="f-field">
+                    <label>积分上限</label>
+                    <input type="number" id="s-pend" placeholder="不限" min="0">
+                </div>
+                <button class="btn btn-primary"   onclick="load(1)">搜索</button>
+                <button class="btn btn-secondary" onclick="clearFields('s-gname','s-pstart','s-pend');load(1)">重置</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="tbl-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th><th>商品名称</th><th>商品图片</th><th>所需积分</th>
+                            <th>兑换开始</th><th>兑换截止</th><th>创建时间</th><th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody"></tbody>
+                </table>
+            </div>
+            <div class="pager" id="pager"></div>
+        </div>
+    </div>
+
+    <!-- ===== FORM VIEW ===== -->
+    <div id="v-form" class="view form-wrap">
+        <div class="page-header">
+            <div style="display:flex;align-items:center;gap:12px">
+                <button class="btn btn-secondary" onclick="showList()">← 返回列表</button>
+                <div>
+                    <div class="page-title" id="form-title">新增规则</div>
+                    <div class="page-subtitle">配置积分兑换商品规则</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <input type="hidden" id="f-id">
+            <div class="mf">
+                <label>兑换商品 <span class="req">*</span></label>
+                <select id="f-good">
+                    <option value="">— 请选择商品 —</option>
+                </select>
+            </div>
+            <div class="mf" style="max-width:240px">
+                <label>所需积分 <span class="req">*</span></label>
+                <input type="number" id="f-point" placeholder="0" min="0">
+            </div>
+            <div class="form-grid">
+                <div class="mf">
+                    <label>兑换开始时间</label>
+                    <input type="datetime-local" id="f-start">
+                </div>
+                <div class="mf">
+                    <label>兑换截止时间</label>
+                    <input type="datetime-local" id="f-end">
+                </div>
+            </div>
+            <div class="form-footer">
+                <button class="btn btn-secondary" onclick="showList()">取消</button>
+                <button class="btn btn-primary"   onclick="submit()">保存</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script src="/admin/static/common.js"></script>
+<script>
+    Auth.check();
+
+    let page = 1, total = 0, ps = 15, rulesMap = {};
+    let _goodsLoaded = false;
+
+    function showList() {
+        document.getElementById('v-form').classList.remove('on');
+        document.getElementById('v-list').classList.add('on');
+    }
+
+    async function loadGoods() {
+        if (_goodsLoaded) return;
+        const data = await api('/admin/good/list', { page: 1, pageSize: 999 });
+        if (data?.code === 200) {
+            const list = data.data?.goodList || [];
+            const sel = document.getElementById('f-good');
+            list.forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g.goodId;
+                opt.textContent = g.goodName;
+                sel.appendChild(opt);
+            });
+            _goodsLoaded = true;
+        }
+    }
+
+    async function showForm(item) {
+        await loadGoods();
+        document.getElementById('f-id').value             = item ? item.pointId : '';
+        document.getElementById('form-title').textContent = item ? '编辑规则' : '新增规则';
+        document.getElementById('f-good').value  = item?.goodId    || '';
+        document.getElementById('f-point').value = item?.point     || '';
+        document.getElementById('f-start').value = toDTLocal(item?.pointStartTime);
+        document.getElementById('f-end').value   = toDTLocal(item?.pointEndTime);
+        document.getElementById('v-list').classList.remove('on');
+        document.getElementById('v-form').classList.add('on');
+    }
+
+    async function load(p) {
+        page = p;
+        document.getElementById('tbody').innerHTML = trLoading(8);
+        const data = await api('/admin/pointsRole/list', {
+            goodName:    document.getElementById('s-gname').value.trim(),
+            pointsStart: +document.getElementById('s-pstart').value || 0,
+            pointsEnd:   +document.getElementById('s-pend').value   || 0,
+            page: p, pageSize: ps
+        });
+        if (!data || data.code !== 200) {
+            document.getElementById('tbody').innerHTML = trEmpty(8, data?.message || '加载失败');
+            return;
+        }
+        const d = data.data; total = d.count || 0;
+        const list = d.pointsRoleList || [];
+        if (!list.length) { document.getElementById('tbody').innerHTML = trEmpty(8); document.getElementById('pager').innerHTML = ''; return; }
+        rulesMap = {};
+        list.forEach(r => rulesMap[r.pointId] = r);
+        document.getElementById('tbody').innerHTML = list.map(r => `
+            <tr>
+                <td>${r.pointId}</td>
+                <td>${esc(r.goodName || '—')}</td>
+                <td>${imgCell(r.goodImage)}</td>
+                <td><span class="badge badge-b">${r.point}</span></td>
+                <td>${r.pointStartTime || '—'}</td>
+                <td>${r.pointEndTime   || '—'}</td>
+                <td>${r.createTime     || '—'}</td>
+                <td>
+                    <button class="btn btn-primary btn-sm" onclick="showForm(rulesMap[${r.pointId}])">编辑</button>
+                </td>
+            </tr>
+        `).join('');
+        renderPager('pager', total, page, ps, 'load');
+    }
+
+    async function submit() {
+        const id    = document.getElementById('f-id').value;
+        const goodId = document.getElementById('f-good').value;
+        const point  = document.getElementById('f-point').value;
+        if (!goodId) { toast('请选择兑换商品', 'err'); return; }
+        if (!point)  { toast('请输入所需积分', 'err'); return; }
+        const body = {
+            goodId:          +goodId,
+            points:          +point,
+            pointsStartTime: fmtDT(document.getElementById('f-start').value),
+            pointsEndTime:   fmtDT(document.getElementById('f-end').value),
+        };
+        if (id) body.pointId = +id;
+        const data = await api(id ? '/admin/pointsRole/update' : '/admin/pointsRole/add', body);
+        if (data?.code === 200) { toast(id ? '修改成功' : '新增成功'); showList(); load(page); }
+        else toast(data?.message || '操作失败', 'err');
+    }
+
+    load(1);
+</script>
+</body>
+</html>

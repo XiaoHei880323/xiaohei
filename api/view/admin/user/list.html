@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>用户列表</title>
+    <link rel="stylesheet" href="/admin/static/common.css">
+</head>
+<body>
+<div class="page-wrap">
+
+    <!-- 页头 -->
+    <div class="page-header">
+        <div>
+            <div class="page-title">用户列表</div>
+            <div class="page-subtitle">管理系统注册用户</div>
+        </div>
+        <button class="btn btn-primary" onclick="openUserModal()">+ 新增用户</button>
+    </div>
+
+    <!-- 搜索 -->
+    <div class="card">
+        <div class="search-form">
+            <div class="f-field">
+                <label>手机号</label>
+                <input type="text" id="s-phone" placeholder="搜索手机号">
+            </div>
+            <div class="f-field">
+                <label>用户昵称</label>
+                <input type="text" id="s-nick" placeholder="搜索昵称（模糊匹配）">
+            </div>
+            <button class="btn btn-primary"   onclick="load(1)">搜索</button>
+            <button class="btn btn-secondary" onclick="clearFields('s-phone','s-nick');load(1)">重置</button>
+        </div>
+    </div>
+
+    <!-- 表格 -->
+    <div class="card">
+        <div class="tbl-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th><th>账号</th><th>昵称</th><th>手机号</th>
+                        <th>积分</th><th>状态</th><th>注册时间</th><th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody"></tbody>
+            </table>
+        </div>
+        <div class="pager" id="pager"></div>
+    </div>
+</div>
+
+<!-- 新增 / 编辑 用户 Modal -->
+<div class="mask" id="m-user">
+    <div class="modal">
+        <div class="modal-hd">
+            <span class="modal-title" id="user-modal-title">新增用户</span>
+            <button class="modal-x" onclick="closeModal('m-user')">✕</button>
+        </div>
+        <div class="modal-bd">
+            <input type="hidden" id="u-id">
+            <div class="mf">
+                <label>用户名 <span class="req">*</span></label>
+                <input type="text" id="u-uname" placeholder="请输入用户名">
+            </div>
+            <div class="mf">
+                <label>昵称 <span class="req">*</span></label>
+                <input type="text" id="u-rname" placeholder="请输入用户昵称">
+            </div>
+            <div class="mf">
+                <label>手机号 <span class="req">*</span></label>
+                <input type="text" id="u-phone" placeholder="请输入手机号">
+            </div>
+            <!-- 编辑时才显示状态 -->
+            <div class="mf" id="u-status-wrap" style="display:none">
+                <label>账号状态</label>
+                <select id="u-status">
+                    <option value="0">正常</option>
+                    <option value="1">禁用</option>
+                </select>
+            </div>
+            <p id="u-hint" style="font-size:12px;color:var(--muted)">初始密码为 123456，首次登录后请修改</p>
+        </div>
+        <div class="modal-ft">
+            <button class="btn btn-secondary" onclick="closeModal('m-user')">取消</button>
+            <button class="btn btn-primary"   onclick="submitUser()">确认</button>
+        </div>
+    </div>
+</div>
+
+<!-- 修改积分 Modal -->
+<div class="mask" id="m-points">
+    <div class="modal">
+        <div class="modal-hd">
+            <span class="modal-title">修改积分</span>
+            <button class="modal-x" onclick="closeModal('m-points')">✕</button>
+        </div>
+        <div class="modal-bd">
+            <input type="hidden" id="mp-uid">
+            <div class="mf">
+                <label>用户：<b id="mp-uname" style="color:var(--text)"></b></label>
+            </div>
+            <div class="mf">
+                <label>操作类型 <span class="req">*</span></label>
+                <select id="mp-src">
+                    <option value="1">增加积分</option>
+                    <option value="2">扣减积分</option>
+                </select>
+            </div>
+            <div class="mf">
+                <label>积分数量 <span class="req">*</span></label>
+                <input type="number" id="mp-pts" placeholder="请输入积分数量" min="1">
+            </div>
+        </div>
+        <div class="modal-ft">
+            <button class="btn btn-secondary" onclick="closeModal('m-points')">取消</button>
+            <button class="btn btn-primary"   onclick="submitPoints()">确认</button>
+        </div>
+    </div>
+</div>
+
+<!-- 积分记录 Modal -->
+<div class="mask" id="m-log">
+    <div class="modal" style="max-width:680px">
+        <div class="modal-hd">
+            <span class="modal-title">积分记录：<span id="ml-uname"></span></span>
+            <button class="modal-x" onclick="closeModal('m-log')">✕</button>
+        </div>
+        <div class="modal-bd" style="padding-bottom:0">
+            <div class="tbl-wrap">
+                <table>
+                    <thead>
+                        <tr><th>来源ID</th><th>积分变动</th><th>类型</th><th>时间</th><th>备注</th></tr>
+                    </thead>
+                    <tbody id="log-tbody"></tbody>
+                </table>
+            </div>
+            <div class="pager" id="log-pager" style="padding:12px 0"></div>
+        </div>
+        <div class="modal-ft">
+            <button class="btn btn-secondary" onclick="closeModal('m-log')">关闭</button>
+        </div>
+    </div>
+</div>
+
+<script src="/admin/static/common.js"></script>
+<script>
+    Auth.check();
+
+    let page = 1, total = 0, ps = 15, usersMap = {};
+
+    // ===== 列表加载 =====
+    async function load(p) {
+        page = p;
+        document.getElementById('tbody').innerHTML = trLoading(8);
+        const data = await api('/admin/user/list', {
+            phone:    document.getElementById('s-phone').value.trim(),
+            userNick: document.getElementById('s-nick').value.trim(),
+            page: p, pageSize: ps
+        });
+        if (!data || data.code !== 200) {
+            document.getElementById('tbody').innerHTML = trEmpty(8, data?.message || '加载失败');
+            return;
+        }
+        const d = data.data;
+        total = d.count || 0;
+        const list = d.userList || [];
+        if (!list.length) {
+            document.getElementById('tbody').innerHTML = trEmpty(8);
+            document.getElementById('pager').innerHTML = '';
+            return;
+        }
+        usersMap = {};
+        list.forEach(u => usersMap[u.userId] = u);
+        document.getElementById('tbody').innerHTML = list.map(u => `
+            <tr>
+                <td>${u.userId}</td>
+                <td>${esc(u.userName || '—')}</td>
+                <td>${esc(u.userNickName || '—')}</td>
+                <td>${esc(u.phone || '—')}</td>
+                <td><span class="badge badge-b">${u.points || 0}</span></td>
+                <td><span class="badge ${u.status === 0 ? 'badge-g' : 'badge-r'}">${u.status === 0 ? '正常' : '禁用'}</span></td>
+                <td>${u.addTime || '—'}</td>
+                <td>
+                    <div class="td-acts">
+                        <button class="btn btn-primary btn-sm"  onclick="openUserModal(usersMap[${u.userId}])">编辑</button>
+                        <button class="btn btn-warning btn-sm"  onclick="resetPwd(${u.userId})">重置密码</button>
+                        <button class="btn btn-success btn-sm"  onclick="openPoints(${u.userId},'${esc(u.userNickName || u.userName)}')">修改积分</button>
+                        <button class="btn btn-secondary btn-sm" onclick="openLog(${u.userId},'${esc(u.userNickName || u.userName)}')">积分记录</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+        renderPager('pager', total, page, ps, 'load');
+    }
+
+    // ===== 新增 / 编辑 用户 =====
+    function openUserModal(user) {
+        const isEdit = !!user;
+        document.getElementById('u-id').value                      = isEdit ? user.userId : '';
+        document.getElementById('user-modal-title').textContent    = isEdit ? '编辑用户' : '新增用户';
+        document.getElementById('u-uname').value                   = isEdit ? (user.userName    || '') : '';
+        document.getElementById('u-rname').value                   = isEdit ? (user.userNickName || '') : '';
+        document.getElementById('u-phone').value                   = isEdit ? (user.phone        || '') : '';
+        document.getElementById('u-status').value                  = isEdit ? String(user.status ?? 0) : '0';
+        document.getElementById('u-status-wrap').style.display     = isEdit ? 'block' : 'none';
+        document.getElementById('u-hint').style.display            = isEdit ? 'none'  : 'block';
+        openModal('m-user');
+    }
+
+    async function submitUser() {
+        const id     = document.getElementById('u-id').value;
+        const uname  = document.getElementById('u-uname').value.trim();
+        const rname  = document.getElementById('u-rname').value.trim();
+        const phone  = document.getElementById('u-phone').value.trim();
+        const status = +document.getElementById('u-status').value;
+
+        if (!uname) { toast('请输入用户名', 'err'); return; }
+        if (!rname) { toast('请输入昵称',   'err'); return; }
+        if (!phone) { toast('请输入手机号', 'err'); return; }
+
+        let data;
+        if (id) {
+            data = await api('/admin/user/updateInfo', {
+                userId: +id, userName: uname, relName: rname, phone, status
+            });
+        } else {
+            data = await api('/admin/user/add', {
+                userName: uname, relName: rname, phone
+            });
+        }
+
+        if (data?.code === 200) {
+            toast(id ? '修改成功' : '新增成功，初始密码 123456');
+            closeModal('m-user');
+            load(id ? page : 1);
+        } else {
+            toast(data?.message || '操作失败', 'err');
+        }
+    }
+
+    // ===== 重置密码 =====
+    async function resetPwd(userId) {
+        if (!confirm('确认重置该用户密码为 123456？')) return;
+        const data = await api('/admin/user/updatePwd', { userId });
+        if (data?.code === 200) { toast('密码已重置为 123456'); load(page); }
+        else toast(data?.message || '操作失败', 'err');
+    }
+
+    // ===== 修改积分 =====
+    function openPoints(userId, name) {
+        document.getElementById('mp-uid').value         = userId;
+        document.getElementById('mp-uname').textContent = name;
+        document.getElementById('mp-pts').value         = '';
+        document.getElementById('mp-src').value         = '1';
+        openModal('m-points');
+    }
+    async function submitPoints() {
+        const userId = +document.getElementById('mp-uid').value;
+        const points = +document.getElementById('mp-pts').value;
+        const source = +document.getElementById('mp-src').value;
+        if (!points || points <= 0) { toast('请输入有效积分数量', 'err'); return; }
+        const data = await api('/admin/user/updateUserPoints', { userId, points, source });
+        if (data?.code === 200) { toast('积分修改成功'); closeModal('m-points'); load(page); }
+        else toast(data?.message || '操作失败', 'err');
+    }
+
+    // ===== 积分记录 =====
+    let logUid = 0, logPage = 1, logPs = 10;
+    async function openLog(userId, name) {
+        logUid = userId;
+        document.getElementById('ml-uname').textContent = name;
+        openModal('m-log');
+        loadLog(1);
+    }
+    async function loadLog(p) {
+        logPage = p;
+        document.getElementById('log-tbody').innerHTML = trLoading(5);
+        const data = await api('/admin/user/pointsList', { userId: logUid, page: p, pageSize: logPs });
+        if (!data || data.code !== 200) {
+            document.getElementById('log-tbody').innerHTML = trEmpty(5, data?.message || '加载失败');
+            return;
+        }
+        const d = data.data, list = d.list || [];
+        if (!list.length) {
+            document.getElementById('log-tbody').innerHTML = trEmpty(5, '暂无积分记录');
+            document.getElementById('log-pager').innerHTML = '';
+            return;
+        }
+        document.getElementById('log-tbody').innerHTML = list.map(r => `
+            <tr>
+                <td>${r.sourceId || '—'}</td>
+                <td><span class="badge ${r.points >= 0 ? 'badge-g' : 'badge-r'}">${r.points >= 0 ? '+' : ''}${r.points}</span></td>
+                <td>${srcLabel(r.source)}</td>
+                <td>${r.createAt || '—'}</td>
+                <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.notes||'')}">${esc(r.notes || '—')}</td>
+            </tr>
+        `).join('');
+        renderPager('log-pager', d.count || 0, logPage, logPs, 'loadLog');
+    }
+
+    load(1);
+</script>
+</body>
+</html>
