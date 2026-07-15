@@ -21,6 +21,10 @@ type CultrueDbStruct struct {
 	SyActivityConfigItemDao   modelDao.SyActivityConfigItemDao
 	StudentDao                modelDao.StudentDao
 	TeacherDao                modelDao.TeacherDao
+	CourseMainDao             modelDao.CourseMainDao
+	CourseEvaluationDao       modelDao.CourseEvaluationDao
+	CourseMediaDao            modelDao.CourseMediaDao
+	CourseErrorCollectionDao  modelDao.CourseErrorCollectionDao
 }
 
 func NewCultrueDbStruct(engine *xorm.Engine) *CultrueDbStruct {
@@ -40,5 +44,9 @@ func NewCultrueDbStruct(engine *xorm.Engine) *CultrueDbStruct {
 		SyActivityConfigItemDao:   modelDao.NewSyActivityConfigItemDao(engine),
 		StudentDao:                modelDao.NewStudentDao(engine),
 		TeacherDao:                modelDao.NewTeacherDao(engine),
+		CourseMainDao:             modelDao.NewCourseMainDao(engine),
+		CourseEvaluationDao:       modelDao.NewCourseEvaluationDao(engine),
+		CourseMediaDao:            modelDao.NewCourseMediaDao(engine),
+		CourseErrorCollectionDao:  modelDao.NewCourseErrorCollectionDao(engine),
 	}
 }

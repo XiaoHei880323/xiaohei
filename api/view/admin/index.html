@@ -225,6 +225,10 @@
         .s-children.open { display: block; }
         .sidebar.mini .s-children { display: none !important; }
         .s-child {
+.s-children .s-parent { padding-left: 26px; }
+.s-children .s-child { padding-left: 26px; }
+.s-children .s-children .s-child { padding-left: 45px; }
+
             padding: 8px 17px 8px 45px; cursor: pointer; color: var(--text2);
             font-size: 13px; transition: all .2s;
             border-left: 3px solid transparent; white-space: nowrap; overflow: hidden;
@@ -368,7 +372,7 @@
             </div>
 
             <!-- 功能模块 -->
-            <div class="s-sec">功能模块</div>
+            <div class="s-sec">功能模块 - 课</div>
 
             <div class="s-parent" id="pg-course" data-tip="课程管理" onclick="toggleGroup('pg-course','gc-course')">
                 <span class="si">课</span>
@@ -378,43 +382,52 @@
             <div class="s-children" id="gc-course">
                 <div class="s-child" data-page="course/student" onclick="goPage('course/student')">学生管理</div>
                 <div class="s-child" data-page="course/teacher" onclick="goPage('course/teacher')">教师管理</div>
+                <div class="s-child" data-page="course/main" onclick="goPage('course/main')">课程排课</div>
+<!--                <div class="s-child" data-page="course/evaluation" onclick="goPage('course/evaluation')">课程评价</div>-->
             </div>
 
-            <div class="s-parent" id="pg-activity" data-tip="活动管理" onclick="toggleGroup('pg-activity','gc-activity')">
-                <span class="si">🎉</span>
-                <span class="sl">活动管理</span>
+            <div class="s-sec">功能模块 - 商家</div>
+
+            <div class="s-parent" id="pg-business" data-tip="商家管理" onclick="toggleGroup('pg-business','gc-business')">
+                <span class="si">🏪</span>
+                <span class="sl">商家管理</span>
                 <span class="sa">▶</span>
             </div>
-            <div class="s-children" id="gc-activity">
-                <div class="s-child" data-page="activity/signin"  onclick="goPage('activity/signin')">签到活动</div>
-                <div class="s-child" data-page="activity/seckill" onclick="goPage('activity/seckill')">秒杀活动</div>
-            </div>
+            <div class="s-children" id="gc-business">
 
-            <div class="s-parent" id="pg-feature" data-tip="特色管理" onclick="toggleGroup('pg-feature','gc-feature')">
-                <span class="si">🌟</span>
-                <span class="sl">特色管理</span>
-                <span class="sa">▶</span>
-            </div>
-            <div class="s-children" id="gc-feature">
-                <div class="s-child" data-page="goods/list"  onclick="goPage('goods/list')">商品管理</div>
-                <div class="s-child" data-page="scenic/list" onclick="goPage('scenic/list')">景点管理</div>
-            </div>
+                <div class="s-parent" id="pg-activity" data-tip="活动管理" onclick="toggleGroup('pg-activity','gc-activity')">
+                    <span class="si">🎉</span>
+                    <span class="sl">活动管理</span>
+                    <span class="sa">▶</span>
+                </div>
+                <div class="s-children" id="gc-activity">
+                    <div class="s-child" data-page="activity/signin"  onclick="goPage('activity/signin')">签到活动</div>
+                    <div class="s-child" data-page="activity/seckill" onclick="goPage('activity/seckill')">秒杀活动</div>
+                </div>
 
-            <div class="s-top" data-page="points/rule" data-tip="积分规则" onclick="goPage('points/rule')">
-                <span class="si">💎</span><span>积分规则</span>
-            </div>
+                <div class="s-parent" id="pg-feature" data-tip="特色管理" onclick="toggleGroup('pg-feature','gc-feature')">
+                    <span class="si">🌟</span>
+                    <span class="sl">特色管理</span>
+                    <span class="sa">▶</span>
+                </div>
+                <div class="s-children" id="gc-feature">
+                    <div class="s-child" data-page="goods/list"  onclick="goPage('goods/list')">商品管理</div>
+                    <div class="s-child" data-page="scenic/list" onclick="goPage('scenic/list')">景点管理</div>
+                </div>
 
-            <!-- 首页配置 -->
-            <div class="s-parent" id="pg-home" data-tip="首页配置" onclick="toggleGroup('pg-home','gc-home')">
-                <span class="si">🏠</span>
-                <span class="sl">首页配置</span>
-                <span class="sa">▶</span>
-            </div>
-            <div class="s-children" id="gc-home">
-                <div class="s-child" data-page="home/config"  onclick="goPage('home/config')">活动配置</div>
-                <div class="s-child" data-page="home/notice"  onclick="goPage('home/notice')">公告配置</div>
-            </div>
+                <div class="s-child" data-page="points/rule" onclick="goPage('points/rule')">积分规则</div>
 
+                <div class="s-parent" id="pg-home" data-tip="首页配置" onclick="toggleGroup('pg-home','gc-home')">
+                    <span class="si">🏠</span>
+                    <span class="sl">首页配置</span>
+                    <span class="sa">▶</span>
+                </div>
+                <div class="s-children" id="gc-home">
+                    <div class="s-child" data-page="home/config"  onclick="goPage('home/config')">活动配置</div>
+                    <div class="s-child" data-page="home/notice"  onclick="goPage('home/notice')">公告配置</div>
+                </div>
+
+            </div>
         </div><!-- /sidebar-inner -->
     </aside>
 
@@ -576,11 +589,13 @@
         if (sideEl) {
             sideEl.classList.add('on');
             if (sideEl.classList.contains('s-child')) {
-                const gc = sideEl.closest('.s-children');
-                if (gc) {
+                // Open all ancestor s-children (support nested structure)
+                let gc = sideEl.closest('.s-children');
+                while (gc) {
                     gc.classList.add('open');
                     const pg = document.getElementById(gc.id.replace('gc-', 'pg-'));
                     if (pg) pg.classList.add('open', 'grp-on');
+                    gc = gc.parentElement ? gc.parentElement.closest('.s-children') : null;
                 }
             }
         }

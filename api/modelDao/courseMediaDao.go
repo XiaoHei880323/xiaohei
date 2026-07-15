@@ -11,23 +11,23 @@ import (
 	"xorm.io/xorm"
 )
 
-type StudentDao struct {
+type CourseMediaDao struct {
 	engine *xorm.Engine
 }
 
-func NewStudentDao(engine *xorm.Engine) StudentDao {
-	return StudentDao{engine: engine}
+func NewCourseMediaDao(engine *xorm.Engine) CourseMediaDao {
+	return CourseMediaDao{engine: engine}
 }
 
-func (StudentDao) TableName() string { return "course_student" }
+func (CourseMediaDao) TableName() string { return "course_media" }
 
-func (m StudentDao) Insert(params []map[string]interface{}, session *xorm.Session) error {
+func (m CourseMediaDao) Insert(params []map[string]interface{}, session *xorm.Session) error {
 	if len(params) == 0 {
 		return fmt.Errorf("no data to insert [%v]", helper.InterfaceHelperObject.ToString(params))
 	}
 	res, err := dbs.InsertHelperObject.GetInsertSql(params, m.TableName())
 	if err != nil {
-		return fmt.Errorf("build student insert sql: %w", err)
+		return fmt.Errorf("build course_media insert sql: %w", err)
 	}
 	var result sql.Result
 	if session == nil {
@@ -43,18 +43,18 @@ func (m StudentDao) Insert(params []map[string]interface{}, session *xorm.Sessio
 		return err
 	}
 	if count < 1 {
-		return errors.New("新增学生数量为0")
+		return errors.New("新增媒体资源数量为0")
 	}
 	return nil
 }
 
-func (m StudentDao) Update(where []interface{}, values map[string]interface{}, session *xorm.Session) error {
+func (m CourseMediaDao) Update(where []interface{}, values map[string]interface{}, session *xorm.Session) error {
 	res, err := dbs.UpdateHelperObject.Update(where, values, m.TableName())
 	if err != nil {
-		return fmt.Errorf("build student update sql: %w", err)
+		return fmt.Errorf("build course_media update sql: %w", err)
 	}
 	if len(res) == 0 {
-		return errors.New("没有可更新的学生数据")
+		return errors.New("没有可更新的媒体资源数据")
 	}
 	var result sql.Result
 	if session == nil {
@@ -70,13 +70,13 @@ func (m StudentDao) Update(where []interface{}, values map[string]interface{}, s
 		return err
 	}
 	if count < 1 {
-		return errors.New("修改学生数量为0")
+		return errors.New("修改媒体资源数量为0")
 	}
 	return nil
 }
 
-func (m StudentDao) GetList(where []interface{}, page, pageSize int, orderBy string) (int, []*model.Student, error) {
-	list := make([]*model.Student, 0)
+func (m CourseMediaDao) GetList(where []interface{}, page, pageSize int, orderBy string) (int, []*model.CourseMedia, error) {
+	list := make([]*model.CourseMedia, 0)
 	params := where[1:]
 	if orderBy == "" {
 		orderBy = "id desc"
@@ -86,15 +86,9 @@ func (m StudentDao) GetList(where []interface{}, page, pageSize int, orderBy str
 	return int(count), list, err
 }
 
-func (m StudentDao) GetInfo(where []interface{}) (bool, *model.Student, error) {
-	student := new(model.Student)
+func (m CourseMediaDao) GetInfo(where []interface{}) (bool, *model.CourseMedia, error) {
+	item := new(model.CourseMedia)
 	params := where[1:]
-	has, err := m.engine.Table(m.TableName()).Where(where[0], params...).Get(student)
-	return has, student, err
-}
-
-func (m StudentDao) GetIdsByName(name string) ([]int, error) {
-	list := make([]int, 0)
-	err := m.engine.Table(m.TableName()).Cols("id").Where("name LIKE ? AND is_delete = ?", "%"+name+"%", 0).Find(&list)
-	return list, err
+	has, err := m.engine.Table(m.TableName()).Where(where[0], params...).Get(item)
+	return has, item, err
 }

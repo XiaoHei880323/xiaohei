@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>课程评价管理</title>
+    <link rel="stylesheet" href="/admin/static/common.css">
+    <style>
+        .view { display: none; }
+        .view.on { display: block; }
+        .form-wrap { max-width: 820px; }
+        .form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+        .form-footer { display: flex; gap: 12px; padding-top: 16px; margin-top: 8px; border-top: 1px solid rgba(255,255,255,.08); }
+        .detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px 28px; }
+        .detail-label { margin-bottom: 6px; color: #8a9bc0; font-size: 13px; }
+        .detail-value { min-height: 22px; color: #e8eaf0; overflow-wrap: anywhere; }
+        .status-select { min-width: 130px; }
+        .ta-wrap { width: 100%; }
+        .ta-wrap textarea { width: 100%; resize: vertical; min-height: 80px; }
+        @media (max-width: 720px) {
+            .form-grid, .detail-grid { grid-template-columns: minmax(0, 1fr); }
+            .search-form { align-items: stretch; }
+        }
+    </style>
+</head>
+<body>
+<div class="page-wrap">
+    <section id="eval-list-view" class="view on">
+        <div class="page-header">
+            <div>
+                <div class="page-title">课程评价管理</div>
+                <div class="page-subtitle">管理课程评价与学生反馈内容</div>
+            </div>
+            <button class="btn btn-primary" type="button" onclick="openForm()">＋ 新增评价</button>
+        </div>
+
+        <div class="card">
+            <div class="search-form">
+                <div class="f-field">
+                    <label for="search-course-id">课程ID</label>
+                    <input id="search-course-id" type="number" min="0" placeholder="课程编号">
+                </div>
+                <div class="f-field">
+                    <label for="search-eval-type">类型</label>
+                    <select id="search-eval-type" class="status-select">
+                        <option value="">全部</option>
+                        <option value="0">学生对老师</option>
+                        <option value="1">家长对老师</option>
+                        <option value="3">老师对学生</option>
+                    </select>
+                </div>
+                <div class="f-field">
+                    <label for="search-keyword">关键词</label>
+                    <input id="search-keyword" type="text" placeholder="评价内容关键词">
+                </div>
+                <button class="btn btn-primary" type="button" onclick="loadList(1)">搜索</button>
+                <button class="btn btn-secondary" type="button" onclick="resetSearch()">重置</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="tbl-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>课程ID</th>
+                        <th>评价类型</th>
+                        <th>评价内容</th>
+                        <th>评分</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody id="eval-tbody"></tbody>
+                </table>
+            </div>
+            <div class="pager" id="eval-pager"></div>
+        </div>
+    </section>
+
+    <section id="eval-form-view" class="view form-wrap">
+        <div class="page-header">
+            <div style="display:flex;align-items:center;gap:12px">
+                <button class="btn btn-secondary" type="button" onclick="showList()" title="返回评价列表">← 返回</button>
+                <div>
+                    <div class="page-title" id="form-title">新增评价</div>
+                    <div class="page-subtitle">填写课程评价信息</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <input id="form-id" type="hidden">
+            <div class="form-grid">
+                <div class="mf">
+                    <label for="form-course-id">课程编号 <span class="req">*</span></label>
+                    <input id="form-course-id" type="number" min="0" placeholder="请输入课程编号">
+                </div>
+                <div class="mf">
+                    <label for="form-eval-type">评价类型 <span class="req">*</span></label>
+                    <select id="form-eval-type" class="status-select">
+                        <option value="0">学生对老师</option>
+                        <option value="1">家长对老师</option>
+                        <option value="3">老师对学生</option>
+                    </select>
+                </div>
+                <div class="mf">
+                    <label for="form-rating">评分</label>
+                    <select id="form-rating" class="status-select">
+                        <option value="5">5分（非常满意）</option>
+                        <option value="4">4分（满意）</option>
+                        <option value="3">3分（一般）</option>
+                        <option value="2">2分（不满意）</option>
+                        <option value="1">1分（非常不满意）</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mf ta-wrap" style="margin-top:16px">
+                <label for="form-content">评价内容 <span class="req">*</span></label>
+                <textarea id="form-content" maxlength="2000" placeholder="请输入评价内容"></textarea>
+            </div>
+            <div class="form-footer">
+                <button class="btn btn-primary" id="save-button" type="button" onclick="saveEvaluation()">保存</button>
+                <button class="btn btn-secondary" type="button" onclick="showList()">取消</button>
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- 详情弹窗 -->
+<div id="detail-modal" class="modal-mask" onclick="closeModal('detail-modal')">
+    <div class="modal-dialog" onclick="event.stopPropagation()">
+        <div class="modal-header">评价详情</div>
+        <div class="modal-body">
+            <div class="detail-grid">
+                <div>
+                    <div class="detail-label">评价ID</div>
+                    <div class="detail-value" id="detail-id"></div>
+                </div>
+                <div>
+                    <div class="detail-label">课程ID</div>
+                    <div class="detail-value" id="detail-course-id"></div>
+                </div>
+                <div>
+                    <div class="detail-label">评价类型</div>
+                    <div class="detail-value" id="detail-eval-type"></div>
+                </div>
+                <div>
+                    <div class="detail-label">评分</div>
+                    <div class="detail-value" id="detail-rating"></div>
+                </div>
+                <div style="grid-column:1/-1">
+                    <div class="detail-label">评价内容</div>
+                    <div class="detail-value" id="detail-content" style="white-space:pre-wrap;"></div>
+                </div>
+                <div>
+                    <div class="detail-label">创建时间</div>
+                    <div class="detail-value" id="detail-created"></div>
+                </div>
+                <div>
+                    <div class="detail-label">更新时间</div>
+                    <div class="detail-value" id="detail-updated"></div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" type="button" onclick="closeModal('detail-modal')">关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- 删除确认弹窗 -->
+<div id="delete-modal" class="modal-mask" onclick="closeModal('delete-modal')">
+    <div class="modal-dialog modal-sm" onclick="event.stopPropagation()">
+        <div class="modal-header">删除确认</div>
+        <div class="modal-body">
+            <p>确定要删除该评价吗？</p>
+            <p style="color:#8a9bc0;font-size:13px;margin-top:6px;">此操作将逻辑删除评价信息，删除后不可恢复。</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" type="button" onclick="closeModal('delete-modal')">取消</button>
+            <button class="btn btn-danger" type="button" onclick="confirmDelete()">确定删除</button>
+        </div>
+    </div>
+</div>
+
+<script src="/admin/static/common.js"></script>
+<script>
+const apiBase = '/course/manage/evaluation/';
+let currentPage = 1;
+let pendingDeleteId = 0;
+let evalRows = {};
+const pageSize = 20;
+
+function evalTypeText(t) {
+    if (t === 0) return '学生对老师';
+    if (t === 1) return '家长对老师';
+    if (t === 3) return '老师对学生';
+    return '未知(' + t + ')';
+}
+
+function showList() {
+    document.getElementById('eval-list-view').classList.add('on');
+    document.getElementById('eval-form-view').classList.remove('on');
+}
+
+function resetSearch() {
+    document.getElementById('search-course-id').value = '';
+    document.getElementById('search-eval-type').value = '';
+    document.getElementById('search-keyword').value = '';
+    loadList(1);
+}
+
+async function loadList(page) {
+    currentPage = page;
+    const tbody = document.getElementById('eval-tbody');
+    tbody.innerHTML = trLoading(7);
+    const body = {
+        keyword: document.getElementById('search-keyword').value.trim(),
+        page: page,
+        pageSize: pageSize
+    };
+    const courseId = Number(document.getElementById('search-course-id').value);
+    if (courseId > 0) body.courseId = courseId;
+    const evalType = document.getElementById('search-eval-type').value;
+    if (evalType !== '') body.evalType = Number(evalType);
+    const result = await api(apiBase + 'list', body);
+    if (!result || result.code !== 200) {
+        tbody.innerHTML = trEmpty(7, result?.msg || '加载失败');
+        document.getElementById('eval-pager').innerHTML = '';
+        return;
+    }
+    const data = result.data || {};
+    const list = data.list || [];
+    if (!list.length) {
+        tbody.innerHTML = trEmpty(7);
+        document.getElementById('eval-pager').innerHTML = '';
+        return;
+    }
+    evalRows = {};
+    list.forEach(e => { evalRows[e.id] = e; });
+    tbody.innerHTML = list.map(e => `
+        <tr>
+            <td>${e.id}</td>
+            <td>${e.courseId}</td>
+            <td>${evalTypeText(e.evalType)}</td>
+            <td><span title="${esc(e.content)}">${esc(e.content.length > 30 ? e.content.substring(0,30)+'…' : e.content)}</span></td>
+            <td>${'★'.repeat(e.rating)}${'☆'.repeat(5-e.rating)}</td>
+            <td>${esc(valueOrDash(e.createTime))}</td>
+            <td>
+                <div class="td-acts">
+                    <button class="btn btn-secondary btn-sm" type="button" onclick="showDetail(${e.id})">查看</button>
+                    <button class="btn btn-primary btn-sm" type="button" onclick="openForm(${e.id})">编辑</button>
+                    <button class="btn btn-danger btn-sm" type="button" onclick="requestDelete(${e.id})">删除</button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+    renderPager('eval-pager', data.count || 0, page, pageSize, 'loadList');
+}
+
+async function getEvaluation(id) {
+    const result = await api(apiBase + 'detail', { id: id });
+    if (!result || result.code !== 200) {
+        toast(result?.msg || '获取评价详情失败', 'err');
+        return null;
+    }
+    return result.data;
+}
+
+async function showDetail(id) {
+    const e = await getEvaluation(id);
+    if (!e) return;
+    document.getElementById('detail-id').textContent = e.id;
+    document.getElementById('detail-course-id').textContent = e.courseId;
+    document.getElementById('detail-eval-type').textContent = evalTypeText(e.evalType);
+    document.getElementById('detail-rating').textContent = e.rating + ' 分';
+    document.getElementById('detail-content').textContent = e.content || '-';
+    document.getElementById('detail-created').textContent = valueOrDash(e.createTime);
+    document.getElementById('detail-updated').textContent = valueOrDash(e.updateTime);
+    openModal('detail-modal');
+}
+
+async function openForm(id) {
+    let e = null;
+    if (id) {
+        e = await getEvaluation(id);
+        if (!e) return;
+    }
+    document.getElementById('form-title').textContent = e ? '编辑评价' : '新增评价';
+    document.getElementById('form-id').value = e?.id || '';
+    document.getElementById('form-course-id').value = e?.courseId || '';
+    document.getElementById('form-eval-type').value = String(e?.evalType ?? 0);
+    document.getElementById('form-rating').value = String(e?.rating ?? 5);
+    document.getElementById('form-content').value = e?.content || '';
+    document.getElementById('eval-list-view').classList.remove('on');
+    document.getElementById('eval-form-view').classList.add('on');
+}
+
+async function saveEvaluation() {
+    const id = Number(document.getElementById('form-id').value || 0);
+    const courseId = Number(document.getElementById('form-course-id').value);
+    const content = document.getElementById('form-content').value.trim();
+    if (!courseId) { toast('请填写课程编号', 'err'); return; }
+    if (!content) { toast('请填写评价内容', 'err'); return; }
+    const body = {
+        courseId: courseId,
+        evalType: Number(document.getElementById('form-eval-type').value),
+        content: content,
+        rating: Number(document.getElementById('form-rating').value)
+    };
+    if (id) body.id = id;
+    const button = document.getElementById('save-button');
+    button.disabled = true;
+    const result = await api(apiBase + (id ? 'update' : 'add'), body);
+    button.disabled = false;
+    if (result?.code === 200) {
+        toast(id ? '修改成功' : '新增成功');
+        showList();
+        loadList(id ? currentPage : 1);
+        return;
+    }
+    toast(result?.msg || '保存失败', 'err');
+}
+
+function requestDelete(id) {
+    pendingDeleteId = id;
+    openModal('delete-modal');
+}
+
+async function confirmDelete() {
+    if (!pendingDeleteId) return;
+    const id = pendingDeleteId;
+    pendingDeleteId = 0;
+    closeModal('delete-modal');
+    const result = await api(apiBase + 'delete', { id: id });
+    if (result?.code === 200) {
+        toast('删除成功');
+        loadList(currentPage);
+        return;
+    }
+    toast(result?.msg || '删除失败', 'err');
+}
+
+loadList(1);
+</script>
+</body>
+</html>

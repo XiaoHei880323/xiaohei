@@ -14,17 +14,19 @@ license: MIT
 
 ## 执行步骤
 
-### 第1步：确认模型信息
+### 第1步：生表结构
+- 按照模块进行创建文明名
+- 生成对于的sql语句，放在/Users/xiaohei/work/gowork/xiaohei/model/mysql下方
+- 生成的sql语句可以执行，满足3范式
+- 表结构需要确认后才可以执行下方的步骤。
+
+
+### 第2步：确认模型信息
 询问用户：
 - 要生成的模型名称（如：student、teacher、course等）
 - API路径（如：/course/personnel/student/list"）
 - 页面路由（如 admin/page/index）
 - 
-### 第2步：生表结构
-- 按照模块进行创建文明名
-- 生成对于的sql语句，放在/Users/xiaohei/work/gowork/xiaohei/model/mysql下方
-- 生成的sql语句可以执行，满足3范式
-- 表结构需要确认后才可以执行下方的步骤。
 
 ### 第3步：生成API后段代码 Route Handlers logic model modelDao reqs resp
 按照标准模版生成一下文件：

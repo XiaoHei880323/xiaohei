@@ -92,3 +92,9 @@ func (m TeacherDao) GetInfo(where []interface{}) (bool, *model.Teacher, error) {
 	has, err := m.engine.Table(m.TableName()).Where(where[0], params...).Get(teacher)
 	return has, teacher, err
 }
+
+func (m TeacherDao) GetIdsByName(name string) ([]int, error) {
+	list := make([]int, 0)
+	err := m.engine.Table(m.TableName()).Cols("id").Where("name LIKE ? AND is_delete = ?", "%"+name+"%", 0).Find(&list)
+	return list, err
+}

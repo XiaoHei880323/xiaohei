@@ -1,0 +1,25 @@
+CREATE TABLE `course_main` (
+    `id`          int(11)       NOT NULL AUTO_INCREMENT COMMENT '课程ID',
+    `student_id`  int(11)       NOT NULL                COMMENT '学生ID，关联course_student.id',
+    `teacher_id`  int(11)       NOT NULL                COMMENT '老师ID，关联course_teacher.id',
+    `course_start_time` DATETIME NOT NULL DEFAULT '2026-01-01 00:00:00' COMMENT '上课开始时间',
+    `course_end_time`   DATETIME NOT NULL DEFAULT '2026-01-01 00:00:00' COMMENT '上课结束时间',
+    `meeting_link` varchar(512)  NOT NULL DEFAULT ''     COMMENT '上课会议链接',
+    `subject`      varchar(200)  NOT NULL DEFAULT ''     COMMENT '课程主题',
+    `status`       tinyint(3)    NOT NULL DEFAULT 0      COMMENT '状态 0:待上课 1:上课中 2:已完成 3:已取消',
+    `student_entered` tinyint(3) NOT NULL DEFAULT 0      COMMENT '学生是否进入 0:否 1:是',
+    `teacher_entered` tinyint(3) NOT NULL DEFAULT 0      COMMENT '老师是否进入 0:否 1:是',
+    `create_time`  timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`  timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `add_uid`      int(11)       NOT NULL DEFAULT 0      COMMENT '创建人ID，sy_admin.id',
+    `update_uid`   int(11)       NOT NULL DEFAULT 0      COMMENT '更新人ID，sy_admin.id',
+    `is_delete`    tinyint(3)    NOT NULL DEFAULT 0      COMMENT '是否删除 0:未删除 1:已删除',
+    PRIMARY KEY (`id`),
+    KEY `idx_main_student_id` (`student_id`),
+    KEY `idx_main_teacher_id` (`teacher_id`),
+    KEY `idx_main_status_deleted` (`status`, `is_delete`),
+    KEY `idx_main_start_time` (`course_start_time`),
+    KEY `idx_main_end_time` (`course_end_time`)
+    KEY `idx_main_student_entered` (`student_entered`),
+    KEY `idx_main_teacher_entered` (`teacher_entered`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课程主表';

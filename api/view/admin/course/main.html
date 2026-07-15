@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>课程管理</title>
+    <link rel="stylesheet" href="/admin/static/common.css">
+    <style>
+        .view { display: none; }
+        .view.on { display: block; }
+        .form-wrap { max-width: 820px; }
+        .form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+        .form-footer { display: flex; gap: 12px; padding-top: 16px; margin-top: 8px; border-top: 1px solid rgba(255,255,255,.08); }
+        .detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px 28px; }
+        .detail-label { margin-bottom: 6px; color: #8a9bc0; font-size: 13px; }
+        .detail-value { min-height: 22px; color: #e8eaf0; overflow-wrap: anywhere; }
+        .status-select { min-width: 130px; }
+        .search-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+        .search-form .f-field { min-width: 140px; flex: 1 0 auto; }
+        .search-form .f-field label { display: block; font-size: 12px; color: #8a9bc0; margin-bottom: 4px; }
+        .search-form .f-field input,
+        .search-form .f-field select {
+            width: 100%; padding: 7px 10px; background: rgba(255,255,255,.06);
+            border: 1px solid rgba(255,255,255,.08); border-radius: 6px;
+            color: #e8eaf0; font-size: 13px; outline: none;
+        }
+        .search-form .f-field input:focus,
+        .search-form .f-field select:focus { border-color: #4a90e2; }
+        @media (max-width: 860px) {
+            .form-grid, .detail-grid { grid-template-columns: minmax(0, 1fr); }
+        }
+
+        /* Tab bar for detail modal */
+        .tab-bar { display: flex; gap: 2px; border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 16px; }
+        .tab-bar .tab { padding: 8px 16px; font-size: 13px; color: #8a9bc0; cursor: pointer; border-bottom: 2px solid transparent; transition: all .2s; user-select: none; }
+        .tab-bar .tab:hover { color: #e8eaf0; }
+        .tab-bar .tab.on { color: #4a90e2; border-bottom-color: #4a90e2; }
+        .tab-content { display: none; }
+        .tab-content.on { display: block; }
+        .tab-table { width: 100%; font-size: 13px; }
+        .tab-table th { text-align: left; padding: 6px 8px; color: #8a9bc0; border-bottom: 1px solid rgba(255,255,255,.06); font-weight: 500; }
+        .tab-table td { padding: 6px 8px; color: #e8eaf0; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: top; }
+        .tab-table tr:last-child td { border-bottom: none; }
+
+        /* Autocomplete dropdown */
+        .ac-wrap { position: relative; }
+        .ac-dropdown { display: none; position: absolute; top: 100%; left: 0; right: 0; max-height: 200px; overflow-y: auto; background: #1e2f4d; border: 1px solid rgba(255,255,255,.12); border-radius: 6px; box-shadow: 0 8px 28px rgba(0,0,0,.5); z-index: 300; }
+        .ac-dropdown.on { display: block; }
+        .ac-dropdown .ac-item { padding: 8px 12px; font-size: 13px; color: #8a9bc0; cursor: pointer; transition: background .15s; border-bottom: 1px solid rgba(255,255,255,.04); }
+        .ac-dropdown .ac-item:last-child { border-bottom: none; }
+        .ac-dropdown .ac-item:hover { background: #243660; color: #e8eaf0; }
+        .ac-dropdown .ac-empty { padding: 12px; text-align: center; color: #6a7a9e; font-size: 12px; }
+
+        /* Entered badge */
+        .badge-entered { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+        .badge-entered.y { background: rgba(46,213,115,.15); color: #2ed573; }
+        .badge-entered.n { background: rgba(233,69,96,.12); color: #e94560; }
+    </style>
+</head>
+<body>
+<div class="page-wrap">
+    <section id="main-list-view" class="view on">
+        <div class="page-header">
+            <div>
+                <div class="page-title">课程管理</div>
+                <div class="page-subtitle">管理课程排课信息与上课状态</div>
+            </div>
+            <button class="btn btn-primary" type="button" onclick="openForm()">＋ 新增课程</button>
+        </div>
+
+        <div class="card">
+            <div class="search-form">
+               <div class="f-field ac-wrap">
+                   <label for="search-student-name">学生名称</label>
+                    <input id="search-student-name" type="text" class="ac-wrap-input" autocomplete="off" placeholder="输入学生名称搜索" oninput="onSearchStudentInput(this.value)">
+                    <input id="search-student-id" type="hidden">
+                    <div class="ac-dropdown" id="search-student-dropdown"></div>
+                </div>
+                <div class="f-field ac-wrap">
+                    <label for="search-teacher-name">老师名称</label>
+                    <input id="search-teacher-name" type="text" class="ac-wrap-input" autocomplete="off" placeholder="输入老师名称搜索" oninput="onSearchTeacherInput(this.value)">
+                    <input id="search-teacher-id" type="hidden">
+                    <div class="ac-dropdown" id="search-teacher-dropdown"></div>
+                </div>
+                <div class="f-field ac-wrap">
+                    <label for="search-status">状态</label>
+                    <select id="search-status" class="status-select">
+                        <option value="">全部</option>
+                        <option value="0">待上课</option>
+                        <option value="1">上课中</option>
+                        <option value="2">已完成</option>
+                        <option value="3">已取消</option>
+                    </select>
+                </div>
+                <div class="f-field ac-wrap">
+                    <label for="search-date-begin">开始日期</label>
+                    <input id="search-date-begin" type="date">
+                </div>
+                <div class="f-field ac-wrap">
+                    <label for="search-date-end">结束日期</label>
+                    <input id="search-date-end" type="date">
+                </div>
+                <button class="btn btn-primary" type="button" onclick="loadList(1)">搜索</button>
+                <button class="btn btn-secondary" type="button" onclick="resetSearch()">重置</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="tbl-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>学生</th>
+                        <th>老师</th>
+                        <th>上课时间</th>
+                        <th>状态</th>
+                        <th>学生进入</th>
+                        <th>老师进入</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody id="main-tbody"></tbody>
+                </table>
+            </div>
+            <div class="pager" id="main-pager"></div>
+        </div>
+    </section>
+
+    <section id="main-form-view" class="view form-wrap">
+        <div class="page-header">
+            <div style="display:flex;align-items:center;gap:12px">
+                <button class="btn btn-secondary" type="button" onclick="showList()" title="返回课程列表">← 返回</button>
+                <div>
+                    <div class="page-title" id="form-title">新增课程</div>
+                    <div class="page-subtitle">填写课程排课信息</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <input id="form-id" type="hidden">
+            <input id="form-student-id" type="hidden">
+            <input id="form-teacher-id" type="hidden">
+            <div class="form-grid">
+                <div class="mf ac-wrap">
+                    <label for="form-student-name">学生 <span class="req">*</span></label>
+                    <input id="form-student-name" type="text" autocomplete="off" placeholder="输入学生名称搜索选择" oninput="onStudentInput(this.value)">
+                    <div class="ac-dropdown" id="student-dropdown"></div>
+                </div>
+                <div class="mf ac-wrap">
+                    <label for="form-teacher-name">老师 <span class="req">*</span></label>
+                    <input id="form-teacher-name" type="text" autocomplete="off" placeholder="输入老师名称搜索选择" oninput="onTeacherInput(this.value)">
+                    <div class="ac-dropdown" id="teacher-dropdown"></div>
+                </div>
+                <div class="mf">
+                    <label for="form-subject">课程主题</label>
+                    <input id="form-subject" type="text" maxlength="200" placeholder="请输入课程主题">
+                </div>
+                <div class="mf">
+                    <label for="form-status">状态</label>
+                    <select id="form-status" class="status-select">
+                        <option value="0">待上课</option>
+                        <option value="1">上课中</option>
+                        <option value="2">已完成</option>
+                        <option value="3">已取消</option>
+                    </select>
+                </div>
+                <div class="mf">
+                    <label for="form-start-time">上课开始时间 <span class="req">*</span></label>
+                    <input id="form-start-time" type="datetime-local">
+                </div>
+                <div class="mf">
+                    <label for="form-end-time">上课结束时间 <span class="req">*</span></label>
+                    <input id="form-end-time" type="datetime-local">
+                </div>
+            </div>
+            <div class="mf" style="margin-top:16px">
+                <label for="form-meeting-link">会议链接</label>
+                <input id="form-meeting-link" type="text" maxlength="512" placeholder="请输入上课会议链接（可选）">
+            </div>
+            <div class="form-footer">
+                <button class="btn btn-primary" id="save-button" type="button" onclick="saveCourse()">保存</button>
+                <button class="btn btn-secondary" type="button" onclick="showList()">取消</button>
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- 详情弹窗（含标签页） -->
+<div class="mask" id="detail-modal">
+    <div class="modal" style="max-width:760px">
+        <div class="modal-hd">
+            <span class="modal-title">课程详情</span>
+            <button class="modal-x" type="button" onclick="closeModal('detail-modal')" title="关闭">×</button>
+        </div>
+        <div class="modal-bd">
+            <div class="tab-bar" id="detail-tabs">
+                <div class="tab on" data-tab="info" onclick="switchDetailTab('info')">课程信息</div>
+                <div class="tab" data-tab="media" onclick="switchDetailTab('media')">图片/录音</div>
+                <div class="tab" data-tab="evaluation" onclick="switchDetailTab('evaluation')">课程评价</div>
+                <div class="tab" data-tab="errors" onclick="switchDetailTab('errors')">错题集</div>
+            </div>
+
+            <div class="tab-content on" id="tab-info">
+                <div class="detail-grid">
+                    <div><div class="detail-label">课程ID</div><div class="detail-value" id="d-id"></div></div>
+                    <div><div class="detail-label">课程主题</div><div class="detail-value" id="d-subject"></div></div>
+                    <div><div class="detail-label">学生</div><div class="detail-value" id="d-student"></div></div>
+                    <div><div class="detail-label">老师</div><div class="detail-value" id="d-teacher"></div></div>
+                    <div><div class="detail-label">上课开始时间</div><div class="detail-value" id="d-start-time"></div></div>
+                    <div><div class="detail-label">上课结束时间</div><div class="detail-value" id="d-end-time"></div></div>
+                    <div><div class="detail-label">会议链接</div><div class="detail-value" id="d-meeting-link"></div></div>
+                    <div><div class="detail-label">状态</div><div class="detail-value" id="d-status"></div></div>
+                    <div><div class="detail-label">学生是否进入</div><div class="detail-value" id="d-student-entered"></div></div>
+                    <div><div class="detail-label">老师是否进入</div><div class="detail-value" id="d-teacher-entered"></div></div>
+                    <div><div class="detail-label">创建时间</div><div class="detail-value" id="d-created"></div></div>
+                    <div><div class="detail-label">更新时间</div><div class="detail-value" id="d-updated"></div></div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tab-media">
+                <div style="margin-bottom:10px;color:#8a9bc0;font-size:13px;">课程上传的图片与录音资源</div>
+                <div id="media-list"><p style="color:#6a7a9e;text-align:center;padding:20px;">加载中...</p></div>
+            </div>
+
+            <div class="tab-content" id="tab-evaluation">
+                <div style="margin-bottom:10px;color:#8a9bc0;font-size:13px;">课程评价与评分</div>
+                <div id="evaluation-list"><p style="color:#6a7a9e;text-align:center;padding:20px;">加载中...</p></div>
+            </div>
+
+            <div class="tab-content" id="tab-errors">
+                <div style="margin-bottom:10px;color:#8a9bc0;font-size:13px;">课程错题集</div>
+                <div id="error-list"><p style="color:#6a7a9e;text-align:center;padding:20px;">加载中...</p></div>
+            </div>
+        </div>
+        <div class="modal-ft">
+            <button class="btn btn-secondary" type="button" onclick="closeModal('detail-modal')">关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- 删除确认弹窗 -->
+<div class="mask" id="delete-modal">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-hd">
+            <span class="modal-title">确认删除</span>
+            <button class="modal-x" type="button" onclick="closeModal('delete-modal')" title="关闭">×</button>
+        </div>
+        <div class="modal-bd">
+            <p>确定要删除课程 <span id="delete-label" style="font-weight:600;color:#e8eaf0;"></span> 吗？</p>
+            <p style="color:#8a9bc0;font-size:13px;margin-top:6px;">此操作将逻辑删除课程信息，删除后不可恢复。</p>
+        </div>
+        <div class="modal-ft">
+            <button class="btn btn-secondary" type="button" onclick="closeModal('delete-modal')">取消</button>
+            <button class="btn btn-danger" type="button" onclick="confirmDelete()">确定删除</button>
+        </div>
+    </div>
+</div>
+
+<script src="/admin/static/common.js"></script>
+<script>
+const apiBase = "/course/manage/main/";
+const apiMedia = "/course/manage/media/";
+const apiEval = "/course/manage/evaluation/";
+const apiError = "/course/manage/error-collection/";
+const apiStudent = "/course/personnel/student/";
+const apiTeacher = "/course/personnel/teacher/";
+
+let currentPage = 1, pendingDeleteId = 0, detailCourseId = 0, courseRows = {}, pageSize = 20;
+
+function statusText(s) { return ["待上课","上课中","已完成","已取消"][s] || "未知"; }
+function statusBadge(s) {
+  var m = {0:"badge-b",1:"badge-g",2:"badge-g",3:"badge-r"};
+  return "<span class=\"badge "+ (m[s]||"badge-r") +"\">"+statusText(s)+"</span>";
+}
+function enteredBadge(v) { return v===1 ? "<span class=\"badge-entered y\">已进入</span>" : "<span class=\"badge-entered n\">未进入</span>"; }
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function valueOrDash(s) { return s ? esc(s) : "-"; }
+function showList() { document.getElementById("main-list-view").classList.add("on"); document.getElementById("main-form-view").classList.remove("on"); }
+function genderText(g) { return ["未知","男","女"][g] || "未知"; }
+
+function resetSearch() {
+  document.getElementById("search-student-name").value = "";
+  document.getElementById("search-student-id").value = "";
+  document.getElementById("search-teacher-name").value = "";
+  document.getElementById("search-teacher-id").value = "";
+  document.getElementById("search-status").value = "";
+  document.getElementById("search-date-begin").value = "";
+  document.getElementById("search-date-end").value = "";
+  loadList(1);
+}
+
+async function loadList(page) {
+  currentPage = page;
+  var tbody = document.getElementById("main-tbody");
+  tbody.innerHTML = trLoading(8);
+  var body = { page: page, pageSize: pageSize };
+  var sn = document.getElementById("search-student-name").value.trim();
+  if (sn) body.studentName = sn;
+  var sid = document.getElementById("search-student-id").value;
+  if (sid) body.studentId = Number(sid);
+  var tn = document.getElementById("search-teacher-name").value.trim();
+  if (tn) body.teacherName = tn;
+  var tid = document.getElementById("search-teacher-id").value;
+  if (tid) body.teacherId = Number(tid);
+  var st = document.getElementById("search-status").value;
+  if (st !== "") body.status = Number(st);
+  var db = document.getElementById("search-date-begin").value;
+  if (db) body.dateBegin = db;
+  var de = document.getElementById("search-date-end").value;
+  if (de) body.dateEnd = de;
+  var res = await api(apiBase + "list", body);
+  if (!res || res.code !== 200) { tbody.innerHTML = trEmpty(8, res?.msg||"加载失败"); document.getElementById("main-pager").innerHTML = ""; return; }
+  var data = res.data || {}, list = data.list || [];
+  if (!list.length) { tbody.innerHTML = trEmpty(8); document.getElementById("main-pager").innerHTML = ""; return; }
+  courseRows = {};
+  list.forEach(function(c){ courseRows[c.id]=c; });
+  tbody.innerHTML = list.map(function(c){
+    return "<tr><td>"+c.id+"</td><td>"+esc(c.studentName||"-")+"</td><td>"+esc(c.teacherName||"-")+"</td>"+
+      "<td>"+esc(c.courseStartTime||"-")+"<br><span style=\"color:#6a7b9e;font-size:12px\">至 "+(c.courseEndTime||"-")+"</span></td>"+
+      "<td>"+statusBadge(c.status)+"</td>"+
+      "<td>"+enteredBadge(c.studentEntered)+"</td>"+
+      "<td>"+enteredBadge(c.teacherEntered)+"</td>"+
+      "<td><div class=\"td-acts\">"+
+      "<button class=\"btn btn-secondary btn-sm\" onclick=\"showDetail("+c.id+")\">查看</button>"+
+      "<button class=\"btn btn-primary btn-sm\" onclick=\"openForm("+c.id+")\">编辑</button>"+
+      "<button class=\"btn btn-danger btn-sm\" onclick=\"requestDelete("+c.id+")\">删除</button>"+
+      "</div></td></tr>";
+  }).join("");
+  renderPager("main-pager", data.count||0, page, pageSize, "loadList");
+}
+
+/* ==== Detail modal with tabs ==== */
+function switchDetailTab(name) {
+  document.querySelectorAll("#detail-tabs .tab").forEach(function(t){ t.classList.toggle("on", t.dataset.tab===name); });
+  document.querySelectorAll(".tab-content").forEach(function(c){ c.classList.toggle("on", c.id==="tab-"+name); });
+  if (name === "media") loadMediaTab();
+  else if (name === "evaluation") loadEvalTab();
+  else if (name === "errors") loadErrorTab();
+}
+
+async function loadMediaTab() {
+  var el = document.getElementById("media-list");
+  el.innerHTML = "<p style=\"color:#6a7a9e;text-align:center;padding:20px;\">加载中...</p>";
+  var res = await api(apiMedia + "list", { courseId: detailCourseId, page:1, pageSize:999 });
+  if (!res || res.code !== 200) { el.innerHTML = "<p style=\"color:#6a7a9e;text-align:center;padding:20px;\">加载失败</p>"; return; }
+  var list = (res.data||{}).list || [];
+  if (!list.length) { el.innerHTML = "<p style=\"color:#6a7a9e;text-align:center;padding:20px;\">暂无媒体资源</p>"; return; }
+  var h = "<table class=\"tab-table\"><thead><tr><th>类型</th><th>资源地址</th><th>上传时间</th></tr></thead><tbody>";
+  list.forEach(function(m){
+    var t = m.mediaType===0 ? "学生上传" : m.mediaType===1 ? "老师上传" : m.mediaType===3 ? "上课录音" : "未知";
+    var link = m.mediaUrl ? "<a href=\""+esc(m.mediaUrl)+"\" target=\"_blank\" style=\"color:#4a90e2;\">查看</a>" : "-";
+    h += "<tr><td>"+t+"</td><td>"+link+"</td><td>"+esc(m.createTime||"-")+"</td></tr>";
+  });
+  h += "</tbody></table>";
+  el.innerHTML = h;
+}
+
+async function loadEvalTab() {
+  var el = document.getElementById("evaluation-list");
+  el.innerHTML = "<p style=\"color:#6a7a9e;text-align:center;padding:20px;\">加载中...</p>";
+  var res = await api(apiEval + "list", { courseId: detailCourseId, page:1, pageSize:999 });
+  if (!res || res.code !== 200) { el.innerHTML = "<p style=\"color:#6a7a9e;text-align:center;padding:20px;\">加载失败</p>"; return; }
+  var list = (res.data||{}).list || [];
+  if (!list.length) { el.innerHTML = "<p style=\"color:#6a7a9e;text-align:center;padding:20px;\">暂无评价</p>"; return; }
+  var h = "<table class=\"tab-table\"><thead><tr><th>类型</th><th>评分</th><th>评价内容</th><th>时间</th></tr></thead><tbody>";
+  list.forEach(function(e){
+    var t = e.evalType===0 ? "学生对老师" : e.evalType===1 ? "家长对老师" : e.evalType===3 ? "老师对学生" : "未知("+e.evalType+")";
+    var stars = "\u2605".repeat(e.rating||5) + "\u2606".repeat(5-(e.rating||5));
+    h += "<tr><td>"+t+"</td><td>"+stars+"</td><td>"+esc(e.content||"-")+"</td><td>"+esc(e.createTime||"-")+"</td></tr>";
+  });
+  h += "</tbody></table>";
+  el.innerHTML = h;
+}
+
+async function loadErrorTab() {
+  var el = document.getElementById("error-list");
+  el.innerHTML = "<p style=\"color:#6a7a9e;text-align:center;padding:20px;\">加载中...</p>";
+  var res = await api(apiError + "list", { courseId: detailCourseId, page:1, pageSize:999 });
+  if (!res || res.code !== 200) { el.innerHTML = "<p style=\"color:#6a7a9e;text-align:center;padding:20px;\">加载失败</p>"; return; }
+  var list = (res.data||{}).list || [];
+  if (!list.length) { el.innerHTML = "<p style=\"color:#6a7a9e;text-align:center;padding:20px;\">暂无错题</p>"; return; }
+  var h = "<table class=\"tab-table\"><thead><tr><th>错题内容</th><th>正确答案</th><th>学生答案</th><th>知识点</th></tr></thead><tbody>";
+  list.forEach(function(e){
+    h += "<tr><td>"+esc(e.question||"-")+"</td><td>"+esc(e.correctAnswer||"-")+"</td><td>"+esc(e.studentAnswer||"-")+"</td><td>"+esc(e.knowledgePoint||"-")+"</td></tr>";
+  });
+  h += "</tbody></table>";
+  el.innerHTML = h;
+}
+
+async function showDetail(id) {
+  var res = await api(apiBase + "detail", { id: id });
+  if (!res || res.code !== 200) { toast(res?.msg||"获取详情失败","err"); return; }
+  var c = res.data;
+  detailCourseId = c.id;
+  document.getElementById("d-id").textContent = c.id;
+  document.getElementById("d-subject").textContent = c.subject || "-";
+  document.getElementById("d-student").textContent = (c.studentName||"") + " [ID:"+c.studentId+"]";
+  document.getElementById("d-teacher").textContent = (c.teacherName||"") + " [ID:"+c.teacherId+"]";
+  document.getElementById("d-start-time").textContent = c.courseStartTime || "-";
+  document.getElementById("d-end-time").textContent = c.courseEndTime || "-";
+  document.getElementById("d-meeting-link").textContent = c.meetingLink || "-";
+  document.getElementById("d-status").textContent = statusText(c.status);
+  document.getElementById("d-student-entered").innerHTML = enteredBadge(c.studentEntered);
+  document.getElementById("d-teacher-entered").innerHTML = enteredBadge(c.teacherEntered);
+  document.getElementById("d-created").textContent = c.createTime || "-";
+  document.getElementById("d-updated").textContent = c.updateTime || "-";
+  // Reset to info tab
+  switchDetailTab("info");
+  openModal("detail-modal");
+}
+
+/* ==== Autocomplete helpers ==== */
+var acStudentTimer = null, acTeacherTimer = null, acSearchStudentTimer = null, acSearchTeacherTimer = null;
+
+/* ==== Search autocomplete ==== */
+function onSearchStudentInput(val) {
+  clearTimeout(acSearchStudentTimer);
+  var dd = document.getElementById("search-student-dropdown");
+  if (!val.trim()) { dd.classList.remove("on"); dd.innerHTML = ""; return; }
+  acSearchStudentTimer = setTimeout(async function(){
+    dd.innerHTML = "<div class=\"ac-empty\">搜索中...</div>"; dd.classList.add("on");
+    var res = await api(apiStudent + "list", { keyword: val.trim(), page:1, pageSize:20 });
+    if (!res || res.code !== 200) { dd.innerHTML = "<div class=\"ac-empty\">搜索失败</div>"; return; }
+    var list = (res.data||{}).list || [];
+    if (!list.length) { dd.innerHTML = "<div class=\"ac-empty\">未找到匹配的学生</div>"; return; }
+    dd.innerHTML = list.map(function(s){
+      return "<div class=\"ac-item\" onclick=\"selectSearchStudent("+s.id+",'"+esc(s.name)+"')\">"+esc(s.name)+"（"+esc(s.studentNo||"-")+"）</div>";
+    }).join("");
+  }, 300);
+}
+
+function onSearchTeacherInput(val) {
+  clearTimeout(acSearchTeacherTimer);
+  var dd = document.getElementById("search-teacher-dropdown");
+  if (!val.trim()) { dd.classList.remove("on"); dd.innerHTML = ""; return; }
+  acSearchTeacherTimer = setTimeout(async function(){
+    dd.innerHTML = "<div class=\"ac-empty\">搜索中...</div>"; dd.classList.add("on");
+    var res = await api(apiTeacher + "list", { keyword: val.trim(), page:1, pageSize:20 });
+    if (!res || res.code !== 200) { dd.innerHTML = "<div class=\"ac-empty\">搜索失败</div>"; return; }
+    var list = (res.data||{}).list || [];
+    if (!list.length) { dd.innerHTML = "<div class=\"ac-empty\">未找到匹配的老师</div>"; return; }
+    dd.innerHTML = list.map(function(t){
+      return "<div class=\"ac-item\" onclick=\"selectSearchTeacher("+t.id+",'"+esc(t.name)+"')\">"+esc(t.name)+"（"+esc(t.teacherNo||"-")+"）</div>";
+    }).join("");
+  }, 300);
+}
+
+function selectSearchStudent(id, name) {
+  document.getElementById("search-student-id").value = id;
+  document.getElementById("search-student-name").value = name;
+  document.getElementById("search-student-dropdown").classList.remove("on");
+}
+
+function selectSearchTeacher(id, name) {
+  document.getElementById("search-teacher-id").value = id;
+  document.getElementById("search-teacher-name").value = name;
+  document.getElementById("search-teacher-dropdown").classList.remove("on");
+}
+
+
+function onStudentInput(val) {
+  clearTimeout(acStudentTimer);
+  var dd = document.getElementById("student-dropdown");
+  if (!val.trim()) { dd.classList.remove("on"); dd.innerHTML = ""; return; }
+  acStudentTimer = setTimeout(async function(){
+    dd.innerHTML = "<div class=\"ac-empty\">搜索中...</div>"; dd.classList.add("on");
+    var res = await api(apiStudent + "list", { keyword: val.trim(), page:1, pageSize:20 });
+    if (!res || res.code !== 200) { dd.innerHTML = "<div class=\"ac-empty\">搜索失败</div>"; return; }
+    var list = (res.data||{}).list || [];
+    if (!list.length) { dd.innerHTML = "<div class=\"ac-empty\">未找到匹配的学生</div>"; return; }
+    dd.innerHTML = list.map(function(s){
+      return "<div class=\"ac-item\" onclick=\"selectStudent("+s.id+",'"+esc(s.name)+"')\">"+esc(s.name)+"（"+esc(s.studentNo||"-")+"）</div>";
+    }).join("");
+  }, 300);
+}
+
+function onTeacherInput(val) {
+  clearTimeout(acTeacherTimer);
+  var dd = document.getElementById("teacher-dropdown");
+  if (!val.trim()) { dd.classList.remove("on"); dd.innerHTML = ""; return; }
+  acTeacherTimer = setTimeout(async function(){
+    dd.innerHTML = "<div class=\"ac-empty\">搜索中...</div>"; dd.classList.add("on");
+    var res = await api(apiTeacher + "list", { keyword: val.trim(), page:1, pageSize:20 });
+    if (!res || res.code !== 200) { dd.innerHTML = "<div class=\"ac-empty\">搜索失败</div>"; return; }
+    var list = (res.data||{}).list || [];
+    if (!list.length) { dd.innerHTML = "<div class=\"ac-empty\">未找到匹配的老师</div>"; return; }
+    dd.innerHTML = list.map(function(t){
+      return "<div class=\"ac-item\" onclick=\"selectTeacher("+t.id+",'"+esc(t.name)+"')\">"+esc(t.name)+"（"+esc(t.teacherNo||"-")+"）</div>";
+    }).join("");
+  }, 300);
+}
+
+function selectStudent(id, name) {
+  document.getElementById("form-student-id").value = id;
+  document.getElementById("form-student-name").value = name;
+  document.getElementById("student-dropdown").classList.remove("on");
+}
+
+function selectTeacher(id, name) {
+  document.getElementById("form-teacher-id").value = id;
+  document.getElementById("form-teacher-name").value = name;
+  document.getElementById("teacher-dropdown").classList.remove("on");
+}
+
+// Close dropdowns on outside click
+document.addEventListener("click", function(e){
+  if (!e.target.closest(".ac-wrap")) {
+    document.querySelectorAll(".ac-dropdown").forEach(function(d){ d.classList.remove("on"); });
+  }
+});
+
+/* ==== Add / Edit ==== */
+async function getCourse(id) {
+  var res = await api(apiBase + "detail", { id: id });
+  if (!res || res.code !== 200) { toast(res?.msg||"获取课程详情失败","err"); return null; }
+  return res.data;
+}
+
+async function openForm(id) {
+  var c = null;
+  if (id) { c = await getCourse(id); if (!c) return; }
+  document.getElementById("form-title").textContent = c ? "编辑课程" : "新增课程";
+  document.getElementById("form-id").value = c?.id || "";
+  document.getElementById("form-student-id").value = c?.studentId || "";
+  document.getElementById("form-student-name").value = c?.studentName || "";
+  document.getElementById("form-teacher-id").value = c?.teacherId || "";
+  document.getElementById("form-teacher-name").value = c?.teacherName || "";
+  document.getElementById("form-subject").value = c?.subject || "";
+  document.getElementById("form-status").value = String(c?.status ?? 0);
+  document.getElementById("form-start-time").value = c ? (c.courseStartTime||"").replace(" ","T").substring(0,16) : "";
+  document.getElementById("form-end-time").value = c ? (c.courseEndTime||"").replace(" ","T").substring(0,16) : "";
+  document.getElementById("form-meeting-link").value = c?.meetingLink || "";
+  document.getElementById("main-list-view").classList.remove("on");
+  document.getElementById("main-form-view").classList.add("on");
+}
+
+async function saveCourse() {
+  var id = Number(document.getElementById("form-id").value || 0);
+  var studentId = Number(document.getElementById("form-student-id").value);
+  var teacherId = Number(document.getElementById("form-teacher-id").value);
+  var startTime = document.getElementById("form-start-time").value;
+  var endTime = document.getElementById("form-end-time").value;
+  if (!studentId) { toast("请选择学生","err"); return; }
+  if (!teacherId) { toast("请选择老师","err"); return; }
+  if (!startTime) { toast("请选择上课开始时间","err"); return; }
+  if (!endTime) { toast("请选择上课结束时间","err"); return; }
+  var body = {
+    studentId: studentId, teacherId: teacherId,
+    courseStartTime: startTime.replace("T"," ") + ":00",
+    courseEndTime: endTime.replace("T"," ") + ":00",
+    subject: document.getElementById("form-subject").value.trim(),
+    meetingLink: document.getElementById("form-meeting-link").value.trim(),
+    status: Number(document.getElementById("form-status").value)
+  };
+  if (id) body.id = id;
+  var btn = document.getElementById("save-button");
+  btn.disabled = true;
+  var res = await api(apiBase + (id?"update":"add"), body);
+  btn.disabled = false;
+  if (res?.code === 200) { toast(id?"修改成功":"新增成功"); showList(); loadList(id?currentPage:1); return; }
+  toast(res?.msg||"保存失败","err");
+}
+
+/* ==== Delete ==== */
+function requestDelete(id) {
+  pendingDeleteId = id;
+  document.getElementById("delete-label").textContent = "「#" + id + " " + (courseRows[id]?.subject||"") + "」";
+  openModal("delete-modal");
+}
+
+async function confirmDelete() {
+  if (!pendingDeleteId) return;
+  var id = pendingDeleteId; pendingDeleteId = 0;
+  closeModal("delete-modal");
+  var res = await api(apiBase + "delete", { id: id });
+  if (res?.code === 200) { toast("删除成功"); loadList(currentPage); return; }
+  toast(res?.msg||"删除失败","err");
+}
+
+loadList(1);
+</script>
+</body>
+</html>
